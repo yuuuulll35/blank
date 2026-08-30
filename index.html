@@ -120,6 +120,13 @@ textarea#raw{
 .btn.wide{flex:1 1 100%; text-align:center}
 .btn.ghost{background:none; border-color:transparent; color:var(--muted); padding:7px 8px}
 .btn.ghost:hover{color:var(--ink); border-color:transparent}
+/* 확장 프로그램 안내 링크 — 본문 버튼과 겹치지 않게 작고 조용하게 */
+.extlink{
+  display:inline-flex; align-items:center; gap:5px; margin-top:10px;
+  font-size:12px; font-weight:600; color:var(--muted); text-decoration:none;
+}
+.extlink:hover{color:var(--ink); text-decoration:underline}
+.extlink svg{flex:none}
 .hint{font-size:11px; color:var(--muted); margin-top:12px}
 .hint::before{content:'* '}
 
@@ -286,6 +293,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn primary" id="parseBtn">적용하기</button>
       <button class="btn" id="sampleBtn">예시 채우기</button>
     </div>
+    <a class="extlink" id="extLink" href="https://solar-crush-b61.notion.site/3cc75b100d6b80388c10fd6df5338a74" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M9.4 1.2a2 2 0 0 1 2 2v.6h1.4a1.4 1.4 0 0 1 1.4 1.4v2.2h-.7a1.5 1.5 0 0 0 0 3h.7v2.2a1.4 1.4 0 0 1-1.4 1.4h-2.2v-.7a1.5 1.5 0 0 0-3 0v.7H5.4A1.4 1.4 0 0 1 4 12.6v-2.2h-.6a2 2 0 0 1 0-4H4V4.2a1.4 1.4 0 0 1 1.4-1.4h1.4v-.6a2 2 0 0 1 2-2Z"/></svg>발췌 수집기 설치하기</a>
     <p class="hint">화자 인식이 틀려도 괜찮아요. 아래 목록에서 색 칩을 누르면 NPC, PC, 나레이션 순서로 바뀌어요.</p>
     <div class="row">
       <button class="btn wide" id="resetTalk">대화 초기화</button>
