@@ -2605,6 +2605,9 @@ syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard();
 /* 첫 방문이면 예시와 함께 사용법 안내 시작 */
 try {
   if (!localStorage.getItem('blank.tour.done') && !state.msgs.length) {
+    /* 끝까지 보지 않고 그냥 쓰기 시작하거나 탭을 닫아도 다시 뜨지 않도록
+       완료 시점이 아니라 띄우는 시점에 기록한다. 도움말 버튼으로는 언제든 다시 볼 수 있다 */
+    localStorage.setItem('blank.tour.done', '1');
     setTimeout(startTour, 600);
   }
 } catch (e) {}
