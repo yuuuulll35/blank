@@ -120,10 +120,10 @@ textarea#raw{
 .btn.wide{flex:1 1 100%; text-align:center}
 .btn.ghost{background:none; border-color:transparent; color:var(--muted); padding:7px 8px}
 .btn.ghost:hover{color:var(--ink); border-color:transparent}
-/* 확장 프로그램 안내 링크 — 본문 버튼과 겹치지 않게 작고 조용하게 */
+/* 확장 프로그램 안내 링크 — 섹션 제목 옆에 작게 */
 .extlink{
-  display:inline-flex; align-items:center; gap:5px; margin-top:10px;
-  font-size:12px; font-weight:600; color:var(--muted); text-decoration:none;
+  display:inline-flex; align-items:center; gap:4px; flex:none;
+  font-size:11.5px; font-weight:600; color:var(--muted); text-decoration:none;
 }
 .extlink:hover{color:var(--ink); text-decoration:underline}
 .extlink svg{flex:none}
@@ -283,7 +283,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 <div class="app-grid">
 <aside class="sidebar">
   <details class="box" open>
-    <summary class="step">대화 넣기</summary>
+    <summary class="step">대화 넣기<a class="extlink" id="extLink" href="https://solar-crush-b61.notion.site/3cc75b100d6b80388c10fd6df5338a74" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M9.4 1.2a2 2 0 0 1 2 2v.6h1.4a1.4 1.4 0 0 1 1.4 1.4v2.2h-.7a1.5 1.5 0 0 0 0 3h.7v2.2a1.4 1.4 0 0 1-1.4 1.4h-2.2v-.7a1.5 1.5 0 0 0-3 0v.7H5.4A1.4 1.4 0 0 1 4 12.6v-2.2h-.6a2 2 0 0 1 0-4H4V4.2a1.4 1.4 0 0 1 1.4-1.4h1.4v-.6a2 2 0 0 1 2-2Z"/></svg>발췌 수집기 설치하기</a></summary>
     <div class="names">
       <label>PC (페르소나)<input id="myName" placeholder="예: 나"></label>
       <label>NPC<input id="charName" placeholder="예: 세인"></label>
@@ -293,7 +293,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn primary" id="parseBtn">적용하기</button>
       <button class="btn" id="sampleBtn">예시 채우기</button>
     </div>
-    <a class="extlink" id="extLink" href="https://solar-crush-b61.notion.site/3cc75b100d6b80388c10fd6df5338a74" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M9.4 1.2a2 2 0 0 1 2 2v.6h1.4a1.4 1.4 0 0 1 1.4 1.4v2.2h-.7a1.5 1.5 0 0 0 0 3h.7v2.2a1.4 1.4 0 0 1-1.4 1.4h-2.2v-.7a1.5 1.5 0 0 0-3 0v.7H5.4A1.4 1.4 0 0 1 4 12.6v-2.2h-.6a2 2 0 0 1 0-4H4V4.2a1.4 1.4 0 0 1 1.4-1.4h1.4v-.6a2 2 0 0 1 2-2Z"/></svg>발췌 수집기 설치하기</a>
     <p class="hint">화자 인식이 틀려도 괜찮아요. 아래 목록에서 색 칩을 누르면 NPC, PC, 나레이션 순서로 바뀌어요.</p>
     <div class="row">
       <button class="btn wide" id="resetTalk">대화 초기화</button>
@@ -604,7 +603,7 @@ const ST_DEFAULT = Object.freeze({
 let st = Object.assign({}, ST_DEFAULT);
 /* 예전 이름(mitjul)으로 저장해 둔 값을 blank로 옮긴다 — 저장한 스타일과 설정을 잃지 않도록 */
 try {
-  for (const [o, n] of [['blank.st','blank.st'], ['blank.styles','blank.styles'], ['blank.tour.done','blank.tour.done']]) {
+  for (const [o, n] of [['mitjul.st','blank.st'], ['mitjul.styles','blank.styles'], ['mitjul.tour.done','blank.tour.done']]) {
     const v = localStorage.getItem(o);
     if (v === null) continue;
     if (localStorage.getItem(n) === null) localStorage.setItem(n, v);
@@ -2607,6 +2606,8 @@ function startTour() {
 $('tourNext').addEventListener('click', () => tourShow(tourIdx + 1));
 $('tourSkip').addEventListener('click', tourEnd);
 $('helpBtn').addEventListener('click', startTour);
+/* summary 안에 있어서 그냥 두면 클릭이 섹션 접기로 새어 나간다 */
+$('extLink').addEventListener('click', e => e.stopPropagation());
 
 syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard();
 
