@@ -686,6 +686,8 @@ let lastChecked = -1;
 
 function renderList() {
   const list = $('list');
+  /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
+  const keepScroll = list.scrollTop;
   list.innerHTML = '';
   $('empty').style.display = state.msgs.length ? 'none' : 'grid';
   renderAvatars();
@@ -719,7 +721,8 @@ function renderList() {
       if (msg.role === 'char' && !msg.name && st.charName) msg.name = st.charName;
       chip.className = 'chip ' + msg.role;
       chip.textContent = msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
-      renderList(); renderCardSoon();
+      row.className = 'msg' + (msg.sel ? '' : ' off');
+      renderAvatars(); renderCardSoon();
     });
 
     const ta = document.createElement('textarea');
@@ -740,7 +743,10 @@ function renderList() {
     row.append(cb, chip, ta, del);
     list.append(row);
   });
-  requestAnimationFrame(() => list.querySelectorAll('.msg-ta').forEach(t => t._grow && t._grow()));
+  requestAnimationFrame(() => {
+    list.querySelectorAll('.msg-ta').forEach(t => t._grow && t._grow());
+    list.scrollTop = keepScroll;
+  });
 }
 /* ---------- 캔버스 렌더 ---------- */
 function hexRgb(h) {
