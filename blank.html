@@ -110,6 +110,7 @@ textarea#raw{
 }
 .btn:hover{border-color:var(--accent); color:var(--ink)}
 .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:700}
+.btn.wide{flex:1 1 100%; text-align:center}
 .btn.ghost{background:none; border-color:transparent; color:var(--muted); padding:7px 8px}
 .btn.ghost:hover{color:var(--ink); border-color:transparent}
 .hint{font-size:11px; color:var(--muted); margin-top:12px}
@@ -279,8 +280,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn" id="sampleBtn">예시 채우기</button>
     </div>
     <p class="hint">화자 인식이 틀려도 괜찮아요. 아래 목록에서 색 칩을 누르면 NPC, PC, 나레이션 순서로 바뀌어요.</p>
-    <div class="row" style="justify-content:flex-end">
-      <button class="btn" id="resetTalk">대화 초기화</button>
+    <div class="row">
+      <button class="btn wide" id="resetTalk">대화 초기화</button>
     </div>
   </details>
 
@@ -467,15 +468,12 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
         </div>
       </div>
       <div id="styleList"></div>
-      <div class="row" style="justify-content:flex-end">
-        <button class="btn" id="resetStyle">스타일 초기화</button>
+      <div class="row">
+        <button class="btn wide" id="resetStyle">스타일 초기화</button>
       </div>
     </div>
   </details>
 
-  <div class="row" style="justify-content:flex-end; margin-top:0">
-    <button class="btn" id="resetAll">전체 초기화</button>
-  </div>
 </aside>
 
 <main class="workspace">
@@ -493,6 +491,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
     <div class="row" style="margin:0">
       <button class="btn ghost" id="helpBtn">도움말</button>
+      <button class="btn ghost" id="resetAll">전체 초기화</button>
       <button class="btn" id="copyBtn">이미지 복사</button>
       <button class="btn primary" id="saveBtn">이미지 저장 (PNG)</button>
     </div>
