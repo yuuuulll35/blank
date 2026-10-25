@@ -192,8 +192,6 @@ textarea#raw{
 .ctrl>.pickers, .ctrl>.swatches{flex:1 1 auto; justify-content:flex-end}
 .ctrl>span b{font-size:12px; color:var(--muted); font-weight:600; font-variant-numeric:tabular-nums}
 .seg{display:flex; flex-wrap:wrap; gap:6px; width:fit-content}
-/* 자주 쓰는 형태와 그 밖의 형태를 줄로 나눈다 */
-.seg-break{flex-basis:100%; height:0}
 .seg button{
   border:1px solid var(--line); background:var(--panel); border-radius:999px;
   padding:6px 14px; font-weight:600; font-size:13px; color:var(--muted); line-height:1.4;
@@ -252,17 +250,10 @@ details.info{border-top:none; padding:0 0 10px; flex:none}
 }
 .avcircle:hover{border-color:var(--accent); color:var(--ink)}
 .avcircle.has{border-style:solid}
-.stylerow{display:flex; align-items:center; gap:9px}
-.stylerow b{font-size:12.5px; font-weight:650; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.stylerow .btn{padding:6px 11px; font-size:12px}
 #avatarList{display:flex; flex-direction:column; gap:7px; flex:1 1 100%}
 .avrow{display:flex; align-items:center; gap:9px}
 .avrow b{font-size:12.5px; font-weight:650; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .avrow .btn{padding:6px 11px; font-size:12px}
-.avthumb{
-  width:30px; height:30px; border-radius:9px; flex:none;
-  border:1px solid var(--line); background:var(--panel2) center/cover no-repeat;
-}
 .toggle{display:flex; align-items:center; cursor:pointer}
 .toggle input{
   appearance:none; -webkit-appearance:none; margin:0; flex:none; cursor:pointer;
@@ -293,9 +284,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 #pages canvas{height:auto; border-radius:3px; box-shadow:0 4px 18px rgba(0,0,0,.12)}
 #stageEmpty{color:var(--muted); font-size:13.5px; text-align:center; line-height:2.1; place-self:center}
 
-.grp{border-top:1px solid var(--line); margin-top:16px; padding-top:14px}
-.grp-title{font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.09em; margin-bottom:12px}
-.ctrl[hidden], .grp[hidden]{display:none}
+.ctrl[hidden]{display:none}
 
 
 /* 저장 모달 */
