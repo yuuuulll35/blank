@@ -860,7 +860,7 @@ function renderList() {
     done.className = 'btn primary'; done.textContent = '완료';
     done.title = 'Ctrl+Enter 또는 Esc';
     done.addEventListener('click', closeEditor);
-    acts.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '형광펜·굵게는 글자를 고른 뒤 눌러요' }), done);
+    acts.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '형광펜·굵게·기울임은 겹쳐 쓸 수 있어요' }), done);
     body.append(tools, ta, acts);
     row.append(body);
     list.append(row);
