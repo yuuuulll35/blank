@@ -321,6 +321,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 #thumbs .th.on span{color:var(--ink)}
 #pages{display:flex; flex-direction:column; gap:0; align-items:center}
 #pages canvas{height:auto; border-radius:3px; box-shadow:0 4px 18px rgba(0,0,0,.12)}
+#pages.clear canvas{background:repeating-conic-gradient(#d9d9d9 0 25%, #f4f4f4 0 50%) 0 0 / 16px 16px; box-shadow:none}
 #stageEmpty{color:var(--muted); font-size:13.5px; text-align:center; line-height:2.1; place-self:center}
 
 .ctrl[hidden]{display:none}
@@ -427,6 +428,9 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
         <label>포인트 <input type="color" id="cAcc"></label>
         <label>형광펜 <input type="color" id="cHl"></label>
       </div>
+      <div class="ctrl" style="margin:12px 0 0"><span>배경 투명</span>
+        <label class="toggle"><input type="checkbox" id="bgClearChk"></label>
+      </div>
     </details>
 
     <details class="more" id="grpDisplay">
@@ -530,8 +534,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
     <div class="row" style="margin:0">
       <button class="btn ghost" id="resetAll">전체 초기화</button>
-      <button class="btn" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
       <button class="btn primary" id="saveBtn">이미지 저장</button>
+      <button class="btn" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
     </div>
   </div>
 
@@ -614,7 +618,7 @@ const ST_DEFAULT = Object.freeze({
   mode:'book', font:'Gowun Batang', size:17, width:640,
   theme:'blog', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E',
   showNames:true, title:'', source:'', myName:'', charName:'', frame:24,
-  hlc:'#FFE95C', ratioKey:'free', ratio:0, narrAlign:'left',
+  hlc:'#FFE95C', bgClear:false, ratioKey:'free', ratio:0, narrAlign:'left',
   book:'page', head:'', pageNum:true, justify:false,
   lineGap:1, paraGap:1, srcAlign:'right', srcAccent:false, srcMark:'none',
   sub:'', chatAlign:'sides', bubble:'fill', quoteAcc:false, postDate:'',
@@ -1090,6 +1094,8 @@ function paintBG(ctx) {
     }
     return;
   }
+  /* 배경 투명: 아무것도 칠하지 않아 PNG가 투명하게 저장된다 */
+  if (st.bgClear) return;
   if (st.mode === 'soft' && f > 0) {
     /* 사진이 없을 때의 대체 바탕. 그라데이션을 쓰면 진한 구간이
        종이 테두리에 걸려 그림자처럼 보이므로 단색으로 둔다 */
@@ -1829,6 +1835,7 @@ async function renderCard() {
   const pagesBox = $('pages');
   const sel = state.msgs.filter(m => m.sel);
   const has = sel.length > 0;
+  pagesBox.classList.toggle('clear', !!st.bgClear); /* 미리보기에서 투명이 보이게 바둑판 무늬 */
   pagesBox.hidden = !has;
   $('stageEmpty').style.display = has ? 'none' : 'block';
   if (!has) {
@@ -2009,7 +2016,7 @@ function exportHtml() {
   const B = BOOK_SPEC[st.book] ? st.book : 'page', K = BOOK_SPEC[B];
   const wrap = css({
     'max-width': st.width + 'px', margin: '0 auto', padding: (book ? K.pad : 2.4) + 'em',
-    background: st.bg, color: st.ink, 'font-family': `'${st.font}', ${FONT_FALLBACK[st.font] || 'sans-serif'}`,
+    background: st.bgClear ? '' : st.bg, color: st.ink, 'font-family': `'${st.font}', ${FONT_FALLBACK[st.font] || 'sans-serif'}`,
     'font-size': st.size + 'px', 'line-height': '1.5', 'word-break': 'keep-all', 'overflow-wrap': 'anywhere',
     'box-sizing': 'border-box', 'text-align': 'left',
   });
@@ -2199,6 +2206,9 @@ function ensureCast() {
   const pc = st.cast.find(c => c.role === 'me'), npc = st.cast.find(c => c.role === 'char');
   if (pc && !pc.name && st.myName) pc.name = st.myName;
   if (npc && !npc.name && st.charName) npc.name = st.charName;
+  /* 말풍선 색은 인물마다 따로 저장한다. 비어 있으면 지금 색 조합 기준 기본색을 한 번 채워 두고,
+     그 뒤로는 포인트색·색 조합을 바꿔도 따라가지 않는다 */
+  for (const c of st.cast) if (!c.color) c.color = defaultBubble(c.role);
 }
 function syncCastNames() {
   const pc = st.cast.find(c => c.role === 'me'), npc = st.cast.find(c => c.role === 'char');
@@ -2297,11 +2307,12 @@ function renderCast() {
     col.className = 'cast-color'; col.title = '말풍선 색';
     const ci = document.createElement('input');
     ci.type = 'color'; ci.value = c.color || defaultBubble(c.role);
-    ci.addEventListener('input', () => { c.color = ci.value; persist(); renderCardSoon(); reset.hidden = false; });
+    const isDefault = () => c.color.toLowerCase() === defaultBubble(c.role).toLowerCase();
+    ci.addEventListener('input', () => { c.color = ci.value; persist(); renderCardSoon(); reset.hidden = isDefault(); });
     const reset = document.createElement('button');
-    reset.className = 'btn ghost cast-reset'; reset.textContent = '기본색'; reset.hidden = !c.color;
-    reset.title = '색 조합의 기본 말풍선 색으로';
-    reset.addEventListener('click', () => { c.color = ''; persist(); renderCast(); renderCardSoon(); });
+    reset.className = 'btn ghost cast-reset'; reset.textContent = '기본색'; reset.hidden = isDefault();
+    reset.title = '지금 색 조합 기준 기본 말풍선 색으로';
+    reset.addEventListener('click', () => { c.color = defaultBubble(c.role); persist(); renderCast(); renderCardSoon(); });
     col.append(ci, Object.assign(document.createElement('span'), { textContent: '말풍선' }));
     const del = document.createElement('button');
     del.className = 'del'; del.textContent = '✕'; del.title = '인물 지우기';
@@ -2374,6 +2385,7 @@ function syncControls() {
   $('paraGapR').value = pg; $('paraGapVal').textContent = pg + '%';
   $('widthR').value = st.width; $('widthVal').textContent = st.width + 'px';
   $('cBg').value = st.bg; $('cInk').value = st.ink; $('cAcc').value = st.acc;
+  $('bgClearChk').checked = !!st.bgClear;
   $('cHl').value = st.hlc; $('ratioSel').value = st.ratioKey;
   $('showNames').checked = st.showNames;
   $('titleIn').value = st.title; $('sourceIn').value = st.source;
@@ -2449,6 +2461,7 @@ $('fontFile').addEventListener('change', async e => {
 $('sizeR').addEventListener('input', e => upd({ size: +e.target.value }));
 $('widthR').addEventListener('input', e => upd({ width: +e.target.value }));
 $('cBg').addEventListener('input', e => upd({ theme:'custom', bg: e.target.value }));
+$('bgClearChk').addEventListener('change', e => upd({ bgClear: e.target.checked }));
 $('cInk').addEventListener('input', e => upd({ theme:'custom', ink: e.target.value }));
 $('cAcc').addEventListener('input', e => upd({ theme:'custom', acc: e.target.value }));
 $('cHl').addEventListener('input', e => upd({ hlc: e.target.value }));
