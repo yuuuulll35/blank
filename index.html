@@ -244,7 +244,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 #thumbs .th.on canvas{border-color:var(--accent)}
 #thumbs .th span{font-size:10.5px; color:var(--muted); font-weight:600}
 #thumbs .th.on span{color:var(--ink)}
-#pages{display:flex; flex-direction:column; gap:24px; align-items:center}
+#pages{display:flex; flex-direction:column; gap:0; align-items:center}
 #pages canvas{height:auto; border-radius:3px; box-shadow:0 4px 18px rgba(0,0,0,.12)}
 #stageEmpty{color:var(--muted); font-size:13.5px; text-align:center; line-height:2.1; place-self:center}
 
@@ -252,17 +252,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 .grp-title{font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.09em; margin-bottom:12px}
 .ctrl[hidden], .grp[hidden]{display:none}
 
-/* 온보딩 투어 */
-#tour{
-  position:fixed; z-index:99; max-width:300px;
-  background:var(--panel); border:1.5px solid var(--accent); border-radius:12px;
-  padding:13px 15px; box-shadow:0 6px 20px rgba(0,0,0,.10); font-size:13px; line-height:1.65;
-}
-#tour p{margin:0 0 10px}
-#tour .row{margin:0; justify-content:flex-end; align-items:center}
-#tourStep{margin-right:auto; font-size:11.5px; color:var(--muted); font-weight:700; font-variant-numeric:tabular-nums}
-/* 외곽선(2px)과 간격(2px)을 합쳐 4px — 말풍선 위치 계산에서도 이 값을 뺀다 */
-.tour-target{outline:2px solid var(--accent) !important; outline-offset:2px; border-radius:8px}
 
 /* 저장 모달 */
 #modal, #avModal{position:fixed; inset:0; background:rgba(20,18,24,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:9}
@@ -312,15 +301,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <div class="grp-title">카드</div>
       <div class="ctrl"><span>형태</span>
         <div class="seg" id="modeSeg">
-          <button data-mode="novel" class="on">기본형</button>
-          <button data-mode="book">소설형</button>
-          <button data-mode="soft">액자형</button>
+          <button data-mode="book" class="on">소설형</button>
           <button data-mode="chat">채팅형</button>
-          <span class="seg-break"></span>
-          <button data-mode="quote">인용구형</button>
-          <button data-mode="daily">일력형</button>
-          <button data-mode="high">하이라이트형</button>
-          <button data-mode="post">블로그형</button>
         </div>
       </div>
       <div class="ctrl" id="rowBook" hidden><span>조판</span>
@@ -331,7 +313,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
           <button data-book="head">헤드라인</button>
         </div>
       </div>
-      <div class="ctrl"><span>판형</span>
+      <div class="ctrl" hidden><span>판형</span>
         <select id="ratioSel">
           <option value="free">자유 (높이 자동)</option>
           <option value="sq">정사각형 1:1</option>
@@ -508,10 +490,10 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <span id="pageInd" hidden></span>
     </div>
     <div class="row" style="margin:0">
-      <button class="btn ghost" id="helpBtn">도움말</button>
       <button class="btn ghost" id="resetAll">전체 초기화</button>
-      <button class="btn" id="copyBtn">이미지 복사</button>
-      <button class="btn primary" id="saveBtn">이미지 저장 (PNG)</button>
+      <button class="btn ghost" id="copyBtn">이미지 복사</button>
+      <button class="btn ghost" id="saveBtn">이미지 저장</button>
+      <button class="btn primary" id="blogBtn" title="Shift + 클릭: 블로그 주소·열쇠 다시 설정">블로그로 올리기</button>
     </div>
   </div>
 
@@ -549,14 +531,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 </main>
 </div>
 
-<div id="tour" hidden role="dialog" aria-label="사용법 안내">
-  <p id="tourText"></p>
-  <div class="row">
-    <span id="tourStep"></span>
-    <button class="btn ghost" id="tourSkip">건너뛰기</button>
-    <button class="btn primary" id="tourNext">다음</button>
-  </div>
-</div>
 
 <div id="avModal" role="dialog" aria-label="프로필 사진 편집">
   <div class="inner" style="max-width:340px">
@@ -587,6 +561,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 /* ---------- 상태 ---------- */
 const state = { msgs: [] };
 const PRESETS = [
+  { key:'blog',  name:'블로그', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E' },   /* 블로그 로그 종이색 */
   { key:'paper', name:'백지',  bg:'#FAF9F6', ink:'#2B2A33', acc:'#A64B5E' },
   { key:'hanji', name:'미색',  bg:'#F4EEE2', ink:'#3A3226', acc:'#8A5A2B' },
   { key:'ink',   name:'먹',    bg:'#1E1D24', ink:'#E7E4EF', acc:'#C98A97' },
@@ -596,8 +571,8 @@ const PRESETS = [
   { key:'dawn',  name:'새벽',  bg:'#2E3A5C', ink:'#E9E9F2', acc:'#7C5CA8' },
 ];
 const ST_DEFAULT = Object.freeze({
-  mode:'novel', font:'Gowun Batang', size:17, width:640,
-  theme:'paper', bg:'#FAF9F6', ink:'#2B2A33', acc:'#A64B5E',
+  mode:'book', font:'Gowun Batang', size:17, width:640,
+  theme:'blog', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E',
   showNames:true, title:'', source:'', myName:'', charName:'', frame:24,
   hlc:'#FFE95C', ratioKey:'free', ratio:0, narrAlign:'left',
   book:'page', head:'', pageNum:true, justify:false,
@@ -607,7 +582,7 @@ const ST_DEFAULT = Object.freeze({
 let st = Object.assign({}, ST_DEFAULT);
 /* 예전 이름(mitjul)으로 저장해 둔 값을 blank로 옮긴다 — 저장한 스타일과 설정을 잃지 않도록 */
 try {
-  for (const [o, n] of [['mitjul.st','blank.st'], ['mitjul.styles','blank.styles'], ['mitjul.tour.done','blank.tour.done']]) {
+  for (const [o, n] of [['mitjul.st','blank.st'], ['mitjul.styles','blank.styles']]) {
     const v = localStorage.getItem(o);
     if (v === null) continue;
     if (localStorage.getItem(n) === null) localStorage.setItem(n, v);
@@ -1727,18 +1702,21 @@ async function renderCard() {
       document.fonts.load(`${w} ${st.size}px "${st.font}"`, sampleText)));
   } catch (e) {}
 
-  const S = 2;
+  let S = 2;
   const mCanvas = document.createElement('canvas');
   const mctx = mCanvas.getContext('2d');
   const resetM = () => { mCanvas.width = st.width * S; mCanvas.height = 10; mctx.setTransform(S, 0, 0, S, 0, 0); };
 
-  // 페이지 나누기: 한 페이지 높이를 넘으면 메시지 단위로 다음 페이지로 넘김
-  const pageH = st.ratio > 0 ? Math.round(st.width * st.ratio) : Math.round(st.width * 1.9);
+  /* 페이지를 나누지 않고 한 장으로 길게 그린다. 브라우저 캔버스는 높이 32000px 안팎이 한도라
+     넘으면 해상도를 1배로 낮추고, 그래도 넘으면 그때만 문단 단위로 잘라 위아래로 이어 붙인다 */
+  const MAX_PX = 30000;
   PAGE_MSGS = sel; PAGE_CTX = { first: true, last: true, num: 1, total: 1 };
   resetM();
   const fullH = Math.ceil(drawCard(mctx, true));
+  if (fullH * S > MAX_PX) { S = 1; resetM(); }
+  const pageH = MAX_PX;
   let pages;
-  if (sel.length <= 1 || fullH <= pageH * (st.ratio > 0 ? 1 : 1.15)) {
+  if (sel.length <= 1 || fullH <= pageH) {
     pages = [sel];
   } else {
     pages = []; let cur = [];
@@ -1762,8 +1740,6 @@ async function renderCard() {
     PAGE_CTX = { first: i === 0, last: i === pages.length - 1, num: i + 1, total: pages.length };
     resetM();
     let H = Math.ceil(drawCard(mctx, true));
-    if (st.ratio > 0 || pages.length > 1) H = Math.max(H, pageH);
-    else if (st.mode === 'quote') H = Math.max(H, st.width); // 인용구형 기본은 최소 정사각형
     const canvas = pageCanvases[i];
     canvas.width = st.width * S; canvas.height = H * S;
     canvas._h = H;
@@ -1777,54 +1753,25 @@ async function renderCard() {
   showPage(Math.min(curPage, pageCanvases.length - 1));
 }
 
-/* ---------- 페이지 넘기기 ---------- */
+/* ---------- 페이지 표시 (잘린 조각이 있으면 전부 위아래로 이어 보인다) ---------- */
 let curPage = 0;
 function showPage(i) {
   if (!pageCanvases.length) return;
-  curPage = Math.max(0, Math.min(pageCanvases.length - 1, i));
-  pageCanvases.forEach((c, k) => { c.style.display = k === curPage ? '' : 'none'; });
-  const multi = pageCanvases.length > 1;
-  $('pgPrev').hidden = $('pgNext').hidden = !multi;
-  $('pgPrev').disabled = curPage === 0;
-  $('pgNext').disabled = curPage === pageCanvases.length - 1;
-  $('pageInd').hidden = !multi;
-  $('pageInd').textContent = (curPage + 1) + ' / ' + pageCanvases.length;
-  setThumbOn(curPage);
-  $('stage').scrollTop = 0;
+  curPage = 0;
+  pageCanvases.forEach(c => { c.style.display = ''; });
+  $('pgPrev').hidden = $('pgNext').hidden = $('pageInd').hidden = true;
 }
 
-/* ---------- 페이지 썸네일 (여러 페이지일 때만) ---------- */
+/* 페이지 썸네일 — 한 장으로 길게 그리므로 쓰지 않는다 */
 function renderThumbs() {
-  const box = $('thumbs');
-  if (pageCanvases.length <= 1) { box.hidden = true; box.innerHTML = ''; return; }
-  box.hidden = false;
-  box.innerHTML = '';
-  pageCanvases.forEach((pc, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'th'; btn.title = (i + 1) + '페이지로 이동';
-    const tc = document.createElement('canvas');
-    const tw = 104;
-    tc.width = tw; tc.height = Math.max(1, Math.round(tw * pc.height / pc.width));
-    tc.getContext('2d').drawImage(pc, 0, 0, tc.width, tc.height);
-    const lb = document.createElement('span');
-    lb.textContent = String(i + 1);
-    btn.append(tc, lb);
-    btn.addEventListener('click', () => showPage(i));
-    box.append(btn);
-  });
+  $('thumbs').hidden = true;
+  $('thumbs').innerHTML = '';
 }
 function setThumbOn(i) {
   [...$('thumbs').children].forEach((b, k) => b.classList.toggle('on', k === i));
 }
 $('pgPrev').addEventListener('click', () => showPage(curPage - 1));
 $('pgNext').addEventListener('click', () => showPage(curPage + 1));
-document.addEventListener('keydown', e => {
-  if (pageCanvases.length <= 1) return;
-  const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-  if (e.key === 'ArrowLeft') showPage(curPage - 1);
-  if (e.key === 'ArrowRight') showPage(curPage + 1);
-});
 function renderCardSoon() {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(renderCard, 120);
@@ -1893,6 +1840,88 @@ $('saveBtn').addEventListener('click', async () => {
     return;
   }
 });
+/* ---------- 블로그로 보내기 ----------
+   개인 블로그(my-blog)의 /api/logs 로 지금 대화와 스타일을 보낸다. 블로그가 같은 모양을 글자로 다시 그린다.
+   처음 누르면 블로그 주소와 열쇠(블로그의 LOG_KEY)를 묻는다. 바꾸려면 Shift + 클릭 (또는 주소 끝에 #blog).
+   같은 대화를 고쳐서 다시 보내면 새 글이 아니라 그 글을 덮어쓴다 (대화를 비우면 새 글) */
+let blogLogId = '';
+function blogCfg() {
+  try { return JSON.parse(localStorage.getItem('blank.blog') || 'null'); } catch (e) { return null; }
+}
+function blogSetup() {
+  const cur = blogCfg() || {};
+  const url = prompt('블로그 주소 (예: https://my-blog.pages.dev)\n비우면 블로그 연결을 해제해요.', cur.url || '');
+  if (url === null) return false;
+  if (!url.trim()) {
+    try { localStorage.removeItem('blank.blog'); } catch (e) {}
+    snack('블로그 연결을 해제했어요');
+    return false;
+  }
+  const key = prompt('블로그 열쇠 (Cloudflare 에 적어둔 LOG_KEY)', cur.key || '');
+  if (!key) return false;
+  try { localStorage.setItem('blank.blog', JSON.stringify({ url: url.trim().replace(/\/+$/, ''), key: key.trim() })); } catch (e) {}
+  snack('블로그를 연결했어요');
+  return true;
+}
+if (location.hash === '#blog') {
+  history.replaceState(null, '', location.pathname + location.search);
+  setTimeout(blogSetup, 300);
+}
+/* 프로필 사진은 512px PNG 라 무겁다. 보낼 때만 작게 줄인다 */
+function smallAvatar(img) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 160;
+  c.getContext('2d').drawImage(img, 0, 0, 160, 160);
+  const webp = c.toDataURL('image/webp', 0.86);
+  return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/jpeg', 0.88);
+}
+function blogPayload() {
+  const sel = state.msgs.filter(m => m.sel);
+  const msgs = sel.map(m => ({ role: m.role, name: displayName(m), text: m.text }));
+  const used = new Set(msgs.map(m => m.name));
+  const av = {};
+  for (const [name, a] of Object.entries(avatars)) if (used.has(name) && a && a.img) av[name] = smallAvatar(a.img);
+  const keys = ['font','size','width','bg','ink','acc','hlc','showNames','chatAlign','bubble','narrAlign',
+                'quoteAcc','justify','lineGap','paraGap','srcAlign','srcAccent','srcMark'];
+  const style = {}; for (const k of keys) style[k] = st[k];
+  return { title: st.title, sub: st.sub, head: st.head, source: st.source,
+           mode: st.mode, book: st.book, style, msgs, avatars: av };
+}
+let blogBusy = false;
+$('blogBtn').addEventListener('click', async (e) => {
+  if (e.shiftKey || !blogCfg()) { if (!blogSetup()) return; }
+  if (blogBusy) return;
+  const cfg = blogCfg();
+  const body = blogPayload();
+  if (!body.msgs.length) { snack('보낼 문단이 없어요'); return; }
+  blogBusy = true;
+  const btn = $('blogBtn'), label = btn.textContent;
+  btn.textContent = '보내는 중…';
+  const send = (method, path) => fetch(cfg.url + path, {
+    method,
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key },
+    body: JSON.stringify(body),
+  });
+  try {
+    let r = blogLogId ? await send('PUT', '/api/logs/' + blogLogId) : await send('POST', '/api/logs');
+    /* 블로그에서 지운 글이면 새로 올린다 */
+    if (r.status === 404 && blogLogId) { blogLogId = ''; r = await send('POST', '/api/logs'); }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      snack(r.status === 401 ? '열쇠가 맞지 않아요. 버튼을 Shift + 클릭해 다시 적어 주세요' : (d.error || '보내지 못했어요 (' + r.status + ')'));
+      return;
+    }
+    const updated = !!blogLogId;
+    blogLogId = d.id;
+    snack(updated ? '블로그 글을 고친 내용으로 바꿨어요' : '블로그에 올렸어요. 고친 뒤 다시 누르면 같은 글이 바뀌어요');
+  } catch (err) {
+    snack('블로그에 닿지 못했어요. 주소를 확인해 주세요 (Shift + 클릭)');
+  } finally {
+    blogBusy = false;
+    btn.textContent = label;
+  }
+});
+
 /* 복사: 여러 페이지면 세로로 이어 붙인 한 장으로 복사 */
 function combinedCanvas() {
   if (pageCanvases.length === 1) return pageCanvases[0];
@@ -2051,11 +2080,16 @@ const MODE_UI = {
   quote: { title:1,        source:1 },
   daily: {                 source:1 },   /* 날짜가 본체라 제목을 받지 않는다 */
   high:  { title:1,        source:1 },
-  book:  { title:1,        source:1, srcOpt:1, head:1, justify:1, book:1, pageNum:1 },
+  book:  { title:1,        source:1, srcOpt:1, head:1, justify:1, book:1 },
   post:  { title:1,        source:1, head:1, avatars:1, justify:1, date:1 },
 };
 
+/* 쓰는 형태는 소설형·채팅형 둘뿐. 예전에 저장한 설정·스타일이 다른 형태면 소설형으로 */
+const MODES_USED = ['book', 'chat'];
 function syncControls() {
+  if (!MODES_USED.includes(st.mode)) st.mode = 'book';
+  /* 블로그에 그대로 이어 붙일 글이라 판형·쪽번호 없이 한 장으로 길게 */
+  st.ratioKey = 'free'; st.ratio = 0; st.pageNum = false;
   const ui = MODE_UI[st.mode] || {};
   $('myName').value = st.myName; $('charName').value = st.charName;
   const isBook = st.mode === 'book';
@@ -2282,6 +2316,7 @@ function clearTalk() {
   st.myName = ''; st.charName = '';
   $('raw').value = '';
   avatars = {}; avSrc = null; avTarget = null; $('avFile').value = '';
+  blogLogId = '';
   persist(); syncControls(); renderList(); renderCardSoon();
 }
 /* 스타일 쪽만 되돌린다 — 대화는 그대로 */
@@ -2545,91 +2580,11 @@ try {
   }
 } catch (e) {}
 
-/* ---------- 온보딩 투어 ---------- */
-const TOUR = [
-  {
-    el: () => document.querySelector('.sidebar details'),
-    text: '대화를 통째로 붙여넣으면 화자를 자동으로 나눠서 담아요. 확장프로그램(발췌 수집기)으로 복사한 데이터도 그대로 인식합니다. 지금은 예시가 들어가 있어요.',
-    prep() { setTab('edit'); document.querySelector('.sidebar details').open = true; },
-  },
-  {
-    el: () => $('list'),
-    text: '문단마다 색 칩을 누르면 화자(NPC, PC, 나레이션)가 바뀌고, 체크로 발췌할 문단을 골라요. 본문은 클릭해서 바로 고칠 수 있어요.',
-    prep() { setTab('edit'); },
-  },
-  {
-    el: () => document.querySelector('.edit-tools'),
-    text: '본문에서 드래그로 고른 부분에 형광펜과 굵게를 적용해요. 긴 덩어리는 "문단 나누기"로 문단별로 쪼갤 수 있어요.',
-    prep() { setTab('edit'); },
-  },
-  {
-    el: () => document.querySelectorAll('.sidebar details')[1],
-    text: '여기서 카드 형태와 조판, 색, 글꼴, 판형, 배경 이미지를 고릅니다.',
-    prep() { document.querySelectorAll('.sidebar details')[1].open = true; },
-  },
-  {
-    el: () => $('tabPrev'),
-    text: '미리보기 탭에서 완성본을 확인해요. 내용이 길면 페이지가 자동으로 나뉘고, 화살표로 넘겨볼 수 있어요.',
-    prep() { setTab('preview'); },
-  },
-  {
-    el: () => $('saveBtn'),
-    text: '마음에 들면 PNG 파일로 저장하거나, 이미지를 복사해서 바로 붙여넣으세요. 이걸로 끝!',
-  },
-];
-let tourIdx = -1;
-function tourClear() {
-  document.querySelectorAll('.tour-target').forEach(el => el.classList.remove('tour-target'));
-}
-function tourEnd() {
-  tourIdx = -1; tourClear(); $('tour').hidden = true;
-  try { localStorage.setItem('blank.tour.done', '1'); } catch (e) {}
-}
-function tourShow(i) {
-  if (i >= TOUR.length) { tourEnd(); return; }
-  tourIdx = i;
-  const step = TOUR[i];
-  if (step.prep) step.prep();
-  tourClear();
-  const el = step.el();
-  if (!el) { tourShow(i + 1); return; }
-  el.classList.add('tour-target');
-  el.scrollIntoView({ block: 'nearest' });
-  $('tourText').textContent = step.text;
-  $('tourStep').textContent = (i + 1) + ' / ' + TOUR.length;
-  $('tourNext').textContent = i === TOUR.length - 1 ? '완료' : '다음';
-  const tip = $('tour');
-  tip.hidden = false;
-  requestAnimationFrame(() => {
-    const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
-    const ring = 4; /* .tour-target 외곽선이 차지하는 여유 */
-    let top = r.bottom + ring + 8;
-    if (top + th > innerHeight - 10) top = Math.max(10, r.top - th - ring - 8);
-    let left = Math.min(Math.max(10, r.left - ring), innerWidth - tw - 10);
-    tip.style.top = top + 'px'; tip.style.left = left + 'px';
-  });
-}
-function startTour() {
-  if (!state.msgs.length) { $('sampleBtn').click(); $('parseBtn').click(); }
-  tourShow(0);
-}
-$('tourNext').addEventListener('click', () => tourShow(tourIdx + 1));
-$('tourSkip').addEventListener('click', tourEnd);
-$('helpBtn').addEventListener('click', startTour);
 /* summary 안에 있어서 그냥 두면 클릭이 섹션 접기로 새어 나간다 */
 $('extLink').addEventListener('click', e => e.stopPropagation());
 
 syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard();
 
-/* 첫 방문이면 예시와 함께 사용법 안내 시작 */
-try {
-  if (!localStorage.getItem('blank.tour.done') && !state.msgs.length) {
-    /* 끝까지 보지 않고 그냥 쓰기 시작하거나 탭을 닫아도 다시 뜨지 않도록
-       완료 시점이 아니라 띄우는 시점에 기록한다. 도움말 버튼으로는 언제든 다시 볼 수 있다 */
-    localStorage.setItem('blank.tour.done', '1');
-    setTimeout(startTour, 600);
-  }
-} catch (e) {}
 </script>
 
 </body>
