@@ -135,6 +135,7 @@ textarea#raw{
 .btn.half{flex:1 1 0; min-width:0; text-align:center}
 .btn.icon{flex:none; display:inline-flex; align-items:center; justify-content:center; padding:0; width:36px; min-height:34px; align-self:stretch; color:var(--muted)}
 .btn.icon:hover{color:var(--ink)}
+.style-top{margin:0 0 6px; justify-content:flex-end}
 .btn.ghost{background:none; border-color:transparent; color:var(--muted); padding:7px 8px}
 .btn.ghost:hover{color:var(--ink); border-color:transparent}
 /* 확장 프로그램 안내 링크 — 섹션 제목 옆에 작게 */
@@ -391,6 +392,9 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 
   <!-- 스타일: 자주 고르는 것(모양·캐릭터 사진·색·글꼴)만 펼쳐 두고, 세부 조절은 접어 둔다 -->
   <section class="side-pane" id="paneStyle" role="tabpanel" hidden>
+    <div class="row style-top">
+      <button class="btn icon" id="resetStyle" title="스타일 초기화 (대화·등장인물·제목·출처는 그대로)" aria-label="스타일 초기화"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.8 2.2v2.6h2.6"/></svg></button>
+    </div>
     <div class="sec">
       <div class="sec-title">모양</div>
       <div class="looks" id="looks"></div>
@@ -527,9 +531,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     <!-- 판형은 쓰지 않는다(한 장으로 길게). 예전 저장값과 맞추려고 값만 남겨 둔다 -->
     <select id="ratioSel" hidden><option value="free">자유</option></select>
 
-    <div class="row" style="margin-top:18px">
-      <button class="btn icon" id="resetStyle" title="스타일 초기화 (대화·등장인물·제목·출처는 그대로)" aria-label="스타일 초기화"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.8 2.2v2.6h2.6"/></svg></button>
-    </div>
   </section>
 
 </aside>
@@ -548,8 +549,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <span id="pageInd" hidden></span>
     </div>
     <div class="row" style="margin:0">
-      <button class="btn primary" id="saveBtn">이미지 저장</button>
-      <button class="btn" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
+      <button class="btn" id="saveBtn">이미지 저장</button>
+      <button class="btn primary" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
     </div>
   </div>
 
