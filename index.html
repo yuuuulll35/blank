@@ -320,6 +320,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 #thumbs .th span{font-size:10.5px; color:var(--muted); font-weight:600}
 #thumbs .th.on span{color:var(--ink)}
 #pages{display:flex; flex-direction:column; gap:0; align-items:center}
+#pages[hidden]{display:none}
 #pages canvas{height:auto; border-radius:3px; box-shadow:0 4px 18px rgba(0,0,0,.12)}
 #pages.clear canvas{background:repeating-conic-gradient(#d9d9d9 0 25%, #f4f4f4 0 50%) 0 0 / 16px 16px; box-shadow:none}
 #stageEmpty{color:var(--muted); font-size:13.5px; text-align:center; line-height:2.1; place-self:center}
@@ -2838,12 +2839,17 @@ function parseExtension(raw) {
 
 $('parseBtn').addEventListener('click', () => {
   const raw = $('raw').value;
-  if (!raw.trim()) return;
-  state.msgs = state.msgs.concat(attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName)));
+  if (!raw.trim()) { snack('붙여넣은 대화가 없어요'); return; }
+  const added = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
+  if (!added.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
+  const castBefore = st.cast.map(c => c.name);
+  state.msgs = state.msgs.concat(added);
   $('raw').value = '';
   autoAddCast();
+  const newCast = st.cast.map(c => c.name).filter(n => n && !castBefore.includes(n));
   renderList(); renderCardSoon();
   setTab('prev');
+  snack(added.length + '문단을 넣었어요' + (newCast.length ? ' · 새 인물 ' + newCast.join(', ') : ''));
 });
 /* 예시 보기: 예시 대화를 넣고 바로 적용해 미리보기로 보여준다 (넣어 둔 대화가 있으면 묻고 바꾼다) */
 $('sampleBtn').addEventListener('click', () => {
