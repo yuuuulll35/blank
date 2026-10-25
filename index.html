@@ -208,8 +208,50 @@ textarea#raw{
 .pickers input[type=color]{width:38px; height:30px; padding:0; border:1px solid var(--line); border-radius:7px; background:none}
 input[type=range]{accent-color:var(--accent); width:100%; height:22px}
 .ctrl input[type=text]{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:100%}
-#styleList{display:flex; flex-direction:column; gap:7px; margin-top:4px}
-#styleList .hint{margin:0}
+/* 스타일 탭 — 늘 보이는 묶음(.sec)과 접어 둔 묶음(details.more) */
+.sec{margin-bottom:18px}
+.sec[hidden]{display:none}
+.sec-title{font-size:12px; font-weight:800; color:var(--ink); margin-bottom:8px; display:flex; align-items:baseline; gap:8px}
+.sec-note{font-size:11px; font-weight:500; color:var(--muted)}
+.sec > select{width:100%}
+.looks{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px}
+.look{
+  position:relative; display:flex; flex-direction:column; gap:5px; align-items:stretch; text-align:center;
+  border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:6px; cursor:pointer;
+}
+.look:hover{border-color:var(--accent)}
+.look.on{border:2px solid var(--accent); padding:5px}
+.look-pv{display:flex; flex-direction:column; justify-content:center; gap:4px; height:46px; border-radius:5px; padding:6px 8px; border:1px solid var(--line)}
+.look-pv i{display:block; border-radius:2px}
+.look-pv.plus{align-items:center; font-size:20px; color:var(--muted); background:var(--panel2); border-style:dashed}
+.look-nm{font-size:11.5px; font-weight:650; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.look.save .look-nm{color:var(--muted)}
+.look-del{
+  position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; padding:0;
+  border:1px solid var(--line); background:var(--panel); color:var(--muted); font-size:13px; line-height:1;
+  display:none; align-items:center; justify-content:center;
+}
+.look.mine:hover .look-del, .look.mine:focus-within .look-del{display:flex}
+@media (hover:none){ .look-del{display:flex} }
+details.more{border-top:1px solid var(--line); padding:10px 0}
+details.more[hidden]{display:none}
+details.more > summary{
+  cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;
+  font-size:13px; font-weight:700; color:var(--ink); user-select:none;
+}
+details.more > summary::-webkit-details-marker{display:none}
+details.more > summary::after{content:'▾'; margin-left:auto; color:var(--muted); transition:transform .15s ease}
+details.more[open] > summary::after{transform:rotate(180deg)}
+details.more[open] > summary{margin-bottom:12px}
+.sum-val{font-size:11.5px; font-weight:500; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+details.info{border-top:none; padding:0 0 10px; flex:none}
+.avcircle{
+  flex:none; width:34px; height:34px; border-radius:50%; padding:0; cursor:pointer;
+  border:1.5px dashed var(--line); background:var(--panel2) center/cover no-repeat;
+  font-size:13px; font-weight:700; color:var(--muted);
+}
+.avcircle:hover{border-color:var(--accent); color:var(--ink)}
+.avcircle.has{border-style:solid}
 .stylerow{display:flex; align-items:center; gap:9px}
 .stylerow b{font-size:12.5px; font-weight:650; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .stylerow .btn{padding:6px 11px; font-size:12px}
@@ -290,6 +332,15 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <label>PC (페르소나)<input id="myName" placeholder="예: 나"></label>
       <label>NPC<input id="charName" placeholder="예: 세인"></label>
     </div>
+    <!-- 제목·출처는 꾸밈이 아니라 글 내용이라 대화와 같이 적는다. 형태마다 쓰는 칸만 보인다 -->
+    <details class="more info" id="infoBox">
+      <summary>제목 · 출처 <span class="sum-val" id="infoSum">선택</span></summary>
+      <div class="ctrl" id="rowHead" hidden><span>머리글</span><input type="text" id="headIn" placeholder="쪽 위 작은 글씨 (비우면 생략)"></div>
+      <div class="ctrl" id="rowTitle"><span id="titleLabel">제목</span><input type="text" id="titleIn" placeholder="카드 맨 위 제목 (비우면 생략)"></div>
+      <div class="ctrl" id="rowSub"><span>부제</span><input type="text" id="subIn" placeholder="제목 아래 회색 한 줄 (비우면 생략)"></div>
+      <div class="ctrl" id="rowSource"><span id="sourceLabel">출처 표기</span><input type="text" id="sourceIn" placeholder="카드 맨 아래 작은 글씨 (비우면 생략)"></div>
+      <div class="ctrl" id="rowDate"><span>날짜</span><input type="datetime-local" id="dateIn"></div>
+    </details>
     <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요."></textarea>
     <div class="row">
       <button class="btn half" id="resetTalk">대화 초기화</button>
@@ -301,110 +352,72 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
   </section>
 
+  <!-- 스타일: 자주 고르는 것(모양·캐릭터 사진·색·글꼴)만 펼쳐 두고, 세부 조절은 접어 둔다 -->
   <section class="side-pane" id="paneStyle" role="tabpanel" hidden>
-    <div class="grp" style="border-top:none; margin-top:2px; padding-top:0">
-      <div class="grp-title">카드</div>
-      <div class="ctrl"><span>형태</span>
-        <div class="seg" id="modeSeg">
-          <button data-mode="book" class="on">소설형</button>
-          <button data-mode="chat">채팅형</button>
-        </div>
-      </div>
-      <div class="ctrl" id="rowBook" hidden><span>조판</span>
-        <div class="seg" id="bookSeg">
-          <button data-book="page" class="on">본문</button>
-          <button data-book="poem">시집</button>
-          <button data-book="web">아티클</button>
-          <button data-book="head">헤드라인</button>
-        </div>
-      </div>
-      <div class="ctrl" hidden><span>판형</span>
-        <select id="ratioSel">
-          <option value="free">자유 (높이 자동)</option>
-          <option value="sq">정사각형 1:1</option>
-          <option value="p45">세로 4:5</option>
-          <option value="story">스토리 9:16</option>
-          <option value="mun">문고판 105×148</option>
-          <option value="s46">46판 127×188</option>
-          <option value="singuk">신국판 152×225</option>
-          <option value="a5">A5 148×210</option>
-          <option value="a4">A4 210×297</option>
-        </select>
-      </div>
-      <div class="ctrl"><span>카드 폭 <b id="widthVal"></b></span><input type="range" id="widthR" min="380" max="900" step="20"></div>
-      <div class="ctrl" id="frameCtrl" hidden><span>액자 여백 <b id="frameVal"></b></span><input type="range" id="frameR" min="0" max="240" step="4"></div>
+    <div class="sec">
+      <div class="sec-title">모양</div>
+      <div class="looks" id="looks"></div>
     </div>
 
-    <div class="grp">
-      <div class="grp-title">글자</div>
-      <div class="ctrl"><span>글꼴</span>
-        <select id="fontSel">
-          <optgroup label="명조">
-            <option value="Gowun Batang">고운바탕</option>
-            <option value="Nanum Myeongjo">나눔명조</option>
-            <option value="Hahmlet">함렛 (모던 명조)</option>
-            <option value="Song Myung">송명 (레트로)</option>
-            <option value="Diphylleia">디필리아 (감성)</option>
-          </optgroup>
-          <optgroup label="고딕">
-            <option value="Pretendard Variable">프리텐다드</option>
-            <option value="Gowun Dodum">고운돋움</option>
-            <option value="IBM Plex Sans KR">IBM 플렉스</option>
-          </optgroup>
-          <optgroup label="포인트">
-            <option value="Jua">주아 (둥근)</option>
-            <option value="Do Hyeon">도현 (각진)</option>
-          </optgroup>
-        </select>
+    <div class="sec" id="secAvatar">
+      <div class="sec-title">캐릭터 사진 <span class="sec-note">동그라미를 누르면 사진을 골라요</span></div>
+      <div id="rowAvatar"><span id="avatarLabel" hidden>화자</span>
+        <div id="avatarList"></div>
+        <input type="file" id="avFile" accept="image/*" hidden>
       </div>
-      <div class="ctrl"><span>글자 크기 <b id="sizeVal"></b></span><input type="range" id="sizeR" min="13" max="26" step="1"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">색</div>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">글꼴</div>
+      <select id="fontSel">
+        <optgroup label="명조">
+          <option value="Gowun Batang">고운바탕</option>
+          <option value="Nanum Myeongjo">나눔명조</option>
+          <option value="Hahmlet">함렛 (모던 명조)</option>
+          <option value="Song Myung">송명 (레트로)</option>
+          <option value="Diphylleia">디필리아 (감성)</option>
+        </optgroup>
+        <optgroup label="고딕">
+          <option value="Pretendard Variable">프리텐다드</option>
+          <option value="Gowun Dodum">고운돋움</option>
+          <option value="IBM Plex Sans KR">IBM 플렉스</option>
+        </optgroup>
+        <optgroup label="포인트">
+          <option value="Jua">주아 (둥근)</option>
+          <option value="Do Hyeon">도현 (각진)</option>
+        </optgroup>
+      </select>
+      <div class="ctrl" style="margin:12px 0 0"><span>글자 크기 <b id="sizeVal"></b></span><input type="range" id="sizeR" min="13" max="26" step="1"></div>
+    </div>
+
+    <details class="more">
+      <summary>간격 · 폭 · 정렬</summary>
+      <div class="ctrl"><span>카드 폭 <b id="widthVal"></b></span><input type="range" id="widthR" min="380" max="900" step="20"></div>
       <div class="ctrl"><span>줄 간격 <b id="lineGapVal"></b></span><input type="range" id="lineGapR" min="70" max="160" step="5"></div>
       <div class="ctrl"><span>문단 간격 <b id="paraGapVal"></b></span><input type="range" id="paraGapR" min="0" max="250" step="10"></div>
       <div class="ctrl" id="rowJustify" hidden><span>양쪽 정렬</span>
         <label class="toggle"><input type="checkbox" id="justifyChk"></label>
       </div>
-      <div class="ctrl"><span>글꼴 추가하기</span>
-        <div class="row" style="margin:0">
-          <label class="btn" for="fontFile">파일 선택</label>
-          <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
-        </div>
-      </div>
-      <p class="hint" style="margin-top:2px">가지고 있는 글꼴 파일(ttf, otf, woff)을 올리면 위 목록에 추가돼요. 새로고침하면 다시 올려야 해요.</p>
-    </div>
+      <div class="ctrl" id="frameCtrl" hidden><span>액자 여백 <b id="frameVal"></b></span><input type="range" id="frameR" min="0" max="240" step="4"></div>
+    </details>
 
-    <div class="grp">
-      <div class="grp-title">색상</div>
-      <div class="ctrl"><span>색 조합</span>
-        <div class="swatches" id="swatches"></div>
+    <details class="more">
+      <summary>색 직접 고르기</summary>
+      <div class="pickers">
+        <label>배경 <input type="color" id="cBg"></label>
+        <label>글자 <input type="color" id="cInk"></label>
+        <label>포인트 <input type="color" id="cAcc"></label>
+        <label>형광펜 <input type="color" id="cHl"></label>
       </div>
-      <div class="ctrl"><span>상세 색상</span>
-        <div class="pickers">
-          <label>배경 <input type="color" id="cBg"></label>
-          <label>글자 <input type="color" id="cInk"></label>
-          <label>포인트 <input type="color" id="cAcc"></label>
-          <label>형광펜 <input type="color" id="cHl"></label>
-        </div>
-      </div>
-    </div>
+    </details>
 
-    <div class="grp" id="grpBg">
-      <div class="grp-title">배경 이미지</div>
-      <div class="ctrl"><span>이미지</span>
-        <div class="row" style="margin:0">
-          <label class="btn" for="bgFile" id="bgPick">이미지 선택</label>
-          <input type="file" id="bgFile" accept="image/*" hidden>
-          <button class="btn ghost" id="bgClear" hidden>제거</button>
-        </div>
-      </div>
-      <div class="ctrl"><span>배경생성 OOC</span>
-        <div class="row" style="margin:0">
-          <button class="btn" id="oocCopy">복사하기</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="grp" id="grpDisplay">
-      <div class="grp-title" id="grpDisplayTitle">대사 표시</div>
+    <details class="more" id="grpDisplay">
+      <summary id="grpDisplayTitle">대사 표시</summary>
       <div class="ctrl" id="rowNames"><span>대사에 이름 표시</span>
         <label class="toggle"><input type="checkbox" id="showNames"></label>
       </div>
@@ -420,10 +433,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
           <button data-bu="plain">배경 없음</button>
         </div>
       </div>
-      <div class="ctrl" id="rowAvatar"><span id="avatarLabel">화자</span>
-        <div id="avatarList"></div>
-        <input type="file" id="avFile" accept="image/*" hidden>
-      </div>
       <div class="ctrl" id="rowNarr"><span>나레이션 정렬</span>
         <div class="seg" id="narrSeg">
           <button data-na="left" class="on">왼쪽</button>
@@ -431,18 +440,13 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
           <button data-na="right">오른쪽</button>
         </div>
       </div>
-    </div>
-
-    <div class="grp">
-      <div class="grp-title">문구</div>
-      <div class="ctrl" id="rowHead" hidden><span>머리글</span><input type="text" id="headIn" placeholder="쪽 위 작은 글씨 (비우면 생략)"></div>
-      <div class="ctrl" id="rowTitle"><span id="titleLabel">제목</span><input type="text" id="titleIn" placeholder="카드 맨 위 제목 (비우면 생략)"></div>
-      <div class="ctrl" id="rowSub"><span>부제</span><input type="text" id="subIn" placeholder="제목 아래 회색 한 줄 (비우면 생략)"></div>
-      <div class="ctrl" id="rowSource"><span id="sourceLabel">출처 표기</span><input type="text" id="sourceIn" placeholder="카드 맨 아래 작은 글씨 (비우면 생략)"></div>
-      <div class="ctrl" id="rowDate"><span>날짜</span><input type="datetime-local" id="dateIn"></div>
       <div class="ctrl" id="rowQuoteAcc"><span>대사에 포인트색</span>
         <label class="toggle"><input type="checkbox" id="quoteAccChk"></label>
       </div>
+    </details>
+
+    <details class="more" id="grpSrc">
+      <summary>출처 꾸미기</summary>
       <div class="ctrl" id="rowSrcMark"><span>출처 앞 표시</span>
         <div class="seg" id="srcMarkSeg">
           <button data-sm="none" class="on">없음</button>
@@ -463,19 +467,36 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <div class="ctrl" id="rowPageNum" hidden><span>쪽번호</span>
         <label class="toggle"><input type="checkbox" id="pageNumChk"></label>
       </div>
-    </div>
+    </details>
 
-    <div class="grp">
-      <div class="grp-title">내 스타일</div>
-      <div class="ctrl"><span>지금 설정 저장</span>
+    <details class="more" id="grpBg">
+      <summary>배경 이미지 · 글꼴 추가</summary>
+      <div class="ctrl"><span>배경 이미지</span>
         <div class="row" style="margin:0">
-          <button class="btn primary" id="saveStyle">저장하기</button>
+          <label class="btn" for="bgFile" id="bgPick">이미지 선택</label>
+          <input type="file" id="bgFile" accept="image/*" hidden>
+          <button class="btn ghost" id="bgClear" hidden>제거</button>
         </div>
       </div>
-      <div id="styleList"></div>
-      <div class="row">
-        <button class="btn wide" id="resetStyle">스타일 초기화</button>
+      <div class="ctrl"><span>배경 생성 OOC</span>
+        <div class="row" style="margin:0">
+          <button class="btn" id="oocCopy">복사하기</button>
+        </div>
       </div>
+      <div class="ctrl"><span>글꼴 추가하기</span>
+        <div class="row" style="margin:0">
+          <label class="btn" for="fontFile">파일 선택</label>
+          <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:2px">가지고 있는 글꼴 파일(ttf, otf, woff)을 올리면 글꼴 목록에 추가돼요. 새로고침하면 다시 올려야 해요. 배경 이미지는 이미지 저장에만 들어가고 HTML 복사에는 빠져요.</p>
+    </details>
+
+    <!-- 판형은 쓰지 않는다(한 장으로 길게). 예전 저장값과 맞추려고 값만 남겨 둔다 -->
+    <select id="ratioSel" hidden><option value="free">자유</option></select>
+
+    <div class="row" style="margin-top:18px">
+      <button class="btn wide" id="resetStyle">스타일 초기화</button>
     </div>
   </section>
 
@@ -2079,12 +2100,12 @@ function renderAvatars() {
   }
   for (const n of names) {
     const row = document.createElement('div'); row.className = 'avrow';
-    /* 썸네일은 사진이 있을 때만 — 빈 네모는 아무것도 알려주지 않는다 */
-    if (avatars[n]) {
-      const th = document.createElement('span'); th.className = 'avthumb';
-      th.style.backgroundImage = 'url(' + avatars[n].src + ')';
-      row.append(th);
-    }
+    /* 동그라미 자체가 사진 고르기 버튼. 사진이 없으면 이름 첫 글자를 보여준다 */
+    const th = document.createElement('button'); th.className = 'avcircle' + (avatars[n] ? ' has' : '');
+    th.title = avatars[n] ? n + ' 사진 바꾸기' : n + ' 사진 고르기';
+    if (avatars[n]) th.style.backgroundImage = 'url(' + avatars[n].src + ')'; else th.textContent = n.slice(0, 1);
+    th.addEventListener('click', () => { avTarget = n; $('avFile').click(); });
+    row.append(th);
     const nm = document.createElement('b'); nm.textContent = n;
     /* 블로그형의 작성자는 글쓴이일 뿐이라 PC/NPC 개념이 없다 */
     let pc = null;
@@ -2096,14 +2117,10 @@ function renderAvatars() {
       pc.title = isPc ? '눌러서 NPC로' : '눌러서 이 화자를 PC로';
       pc.addEventListener('click', () => setPcName(isPc ? '' : n));
     }
-    const pick = document.createElement('button');
-    /* 이미 지정된 뒤에는 '이미지 선택'과 '제거'가 뜻이 겹쳐 보인다 */
-    pick.className = 'btn'; pick.textContent = avatars[n] ? '다시 선택' : '이미지 선택';
-    pick.addEventListener('click', () => { avTarget = n; $('avFile').click(); });
-    row.append(nm); if (pc) row.append(pc); row.append(pick);
+    row.append(nm); if (pc) row.append(pc);
     if (avatars[n]) {
       const del = document.createElement('button');
-      del.className = 'btn ghost'; del.textContent = '제거';
+      del.className = 'btn ghost'; del.textContent = '사진 빼기';
       del.addEventListener('click', () => { delete avatars[n]; renderAvatars(); renderCardSoon(); });
       row.append(del);
     }
@@ -2147,14 +2164,9 @@ function syncControls() {
   $('srcAccentChk').checked = st.srcAccent;
   document.querySelectorAll('#srcAlignSeg button').forEach(b =>
     b.classList.toggle('on', b.dataset.sa === st.srcAlign));
-  document.querySelectorAll('#bookSeg button').forEach(b =>
-    b.classList.toggle('on', b.dataset.book === st.book));
-  $('rowBook').hidden = !ui.book;
   $('rowHead').hidden = !headPh;
   $('rowPageNum').hidden = !(ui.pageNum && st.book !== 'web');
   $('rowJustify').hidden = !ui.justify;
-  document.querySelectorAll('#modeSeg button').forEach(b =>
-    b.classList.toggle('on', b.dataset.mode === st.mode));
   $('fontSel').value = st.font;
   $('sizeR').value = st.size; $('sizeVal').textContent = st.size + 'px';
   const lg = Math.round(st.lineGap * 100), pg = Math.round(st.paraGap * 100);
@@ -2173,7 +2185,7 @@ function syncControls() {
   $('grpDisplayTitle').textContent = st.mode === 'post' ? '작성자' : '대사 표시';
   $('avatarLabel').textContent = st.mode === 'post' ? '프로필 사진' : '화자';
   $('rowNames').hidden = !ui.names;
-  $('rowAvatar').hidden = !ui.avatars;
+  $('secAvatar').hidden = !ui.avatars;
   $('rowChatAlign').hidden = !ui.chat;
   $('rowBubble').hidden = !ui.chat;
   $('rowSub').hidden = !ui.sub;
@@ -2193,8 +2205,8 @@ function syncControls() {
   $('rowNarr').hidden = !ui.narr;
   document.querySelectorAll('#narrSeg button').forEach(b =>
     b.classList.toggle('on', b.dataset.na === st.narrAlign));
-  /* 배경 사진은 액자형에서만 쓴다 */
-  $('grpBg').hidden = !ui.frame;
+  $('grpSrc').hidden = !ui.srcOpt;
+  renderLooks(); syncInfoSum();
   $('frameCtrl').hidden = !ui.frame;
   $('frameR').value = st.frame; $('frameVal').textContent = st.frame + 'px';
 }
@@ -2208,11 +2220,6 @@ for (const p of PRESETS) {
   b.addEventListener('click', () => upd({ theme:p.key, bg:p.bg, ink:p.ink, acc:p.acc }));
   swBox.append(b);
 }
-$('modeSeg').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  /* 모드만 바꾼다. 색·판형·여백은 사용자가 고른 값이므로 건드리지 않는다 */
-  upd({ mode: b.dataset.mode });
-});
 $('fontSel').addEventListener('change', e => upd({ font: e.target.value }));
 const userFonts = [];
 $('fontFile').addEventListener('change', async e => {
@@ -2259,9 +2266,6 @@ $('ratioSel').addEventListener('change', e => {
 $('lineGapR').addEventListener('input', e => upd({ lineGap: +e.target.value / 100 }));
 $('paraGapR').addEventListener('input', e => upd({ paraGap: +e.target.value / 100 }));
 $('showNames').addEventListener('change', e => upd({ showNames: e.target.checked }));
-$('bookSeg').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (b) upd({ book: b.dataset.book });
-});
 $('headIn').addEventListener('input', e => upd({ head: e.target.value }));
 $('pageNumChk').addEventListener('change', e => upd({ pageNum: e.target.checked }));
 $('srcAccentChk').addEventListener('change', e => upd({ srcAccent: e.target.checked }));
@@ -2308,33 +2312,85 @@ function applyStyle(o) {
   Object.assign(st, o);
   persist(); syncControls(); renderCardSoon();
 }
-function renderStyles() {
-  const box = $('styleList');
-  box.innerHTML = '';
-  if (!myStyles.length) {
-    const p = document.createElement('span');
-    p.className = 'hint';
-    p.textContent = '저장한 스타일이 없어요. 색·글꼴·형태를 맞춰두고 저장하면 다음에 그대로 불러올 수 있어요.';
-    box.append(p);
-    return;
+/* ---------- 모양 카드 ----------
+   형태(소설형·채팅형)와 조판·말풍선을 따로 고르지 않고, 완성된 모양 하나를 눌러 한 번에 바꾼다.
+   색·글꼴·간격은 그대로 둔다. 저장한 내 스타일도 같은 자리에 카드로 놓는다 */
+const LOOKS = [
+  { key:'page',   name:'책 본문',   set:{ mode:'book', book:'page' } },
+  { key:'poem',   name:'시집',      set:{ mode:'book', book:'poem' } },
+  { key:'web',    name:'아티클',    set:{ mode:'book', book:'web' } },
+  { key:'head',   name:'헤드라인',  set:{ mode:'book', book:'head' } },
+  { key:'bubble', name:'말풍선',    set:{ mode:'chat', bubble:'fill' } },
+  { key:'plain',  name:'대화 줄글', set:{ mode:'chat', bubble:'plain' } },
+];
+const lookOn = l => st.mode === l.set.mode && (l.set.book ? st.book === l.set.book : st.bubble === l.set.bubble);
+/* 카드 속 작은 그림: 지금 색으로 줄을 그어 모양만 보여준다 [줄 폭(%), 줄 굵기, 정렬, 둥근 말풍선?] */
+const LOOK_SKETCH = {
+  page:   [[34,3,'l'],[100,3,'l'],[100,3,'l'],[70,3,'l']],
+  poem:   [[44,4,'c'],[60,3,'c'],[52,3,'c']],
+  web:    [[78,7,'l'],[100,1,'l'],[100,3,'l'],[86,3,'l']],
+  head:   [[92,9,'l'],[100,3,'l'],[80,3,'l']],
+  bubble: [[58,8,'l',1],[50,8,'r',1],[62,8,'l',1]],
+  plain:  [[64,3,'l'],[48,3,'r'],[70,3,'l']],
+};
+function lookSketch(key, data) {
+  const box = document.createElement('span');
+  box.className = 'look-pv';
+  const s = data || st;
+  box.style.background = s.bg;
+  for (const [w, h, al, pill] of LOOK_SKETCH[key] || LOOK_SKETCH.page) {
+    const ln = document.createElement('i');
+    ln.style.width = w + '%'; ln.style.height = h + 'px';
+    ln.style.background = pill && al === 'r' ? s.acc : s.ink;
+    ln.style.opacity = pill && al === 'r' ? '1' : (h > 5 && !pill ? '.85' : '.32');
+    if (pill) ln.style.borderRadius = '999px';
+    if (al === 'r') ln.style.marginLeft = 'auto';
+    if (al === 'c') ln.style.margin = '0 auto';
+    box.append(ln);
   }
-  myStyles.forEach((s, i) => {
-    const row = document.createElement('div'); row.className = 'stylerow';
-    const nm = document.createElement('b'); nm.textContent = s.name;
-    const use = document.createElement('button');
-    use.className = 'btn'; use.textContent = '적용';
-    use.addEventListener('click', () => { applyStyle(s.data); snack('「' + s.name + '」 스타일을 적용했어요'); });
-    const del = document.createElement('button');
-    del.className = 'btn ghost'; del.textContent = '삭제';
-    del.addEventListener('click', () => {
-      if (!confirm('「' + s.name + '」 스타일을 지울까요?')) return;
-      myStyles.splice(i, 1); saveStyles(); renderStyles();
-    });
-    row.append(nm, use, del);
-    box.append(row);
-  });
+  return box;
 }
-$('saveStyle').addEventListener('click', () => {
+function renderLooks() {
+  const box = $('looks');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const l of LOOKS) {
+    const b = document.createElement('button');
+    b.className = 'look' + (lookOn(l) ? ' on' : '');
+    b.title = l.name + (l.set.mode === 'chat' ? ' (채팅형)' : ' (소설형)');
+    b.append(lookSketch(l.key), Object.assign(document.createElement('span'), { className: 'look-nm', textContent: l.name }));
+    b.addEventListener('click', () => upd(l.set));
+    box.append(b);
+  }
+  /* 내 스타일: 누르면 적용, 오른쪽 위 x 로 삭제 */
+  myStyles.forEach((s, i) => {
+    const d = s.data || {};
+    const key = d.mode === 'chat' ? (d.bubble === 'plain' ? 'plain' : 'bubble') : (d.book || 'page');
+    const b = document.createElement('div');
+    b.className = 'look mine'; b.tabIndex = 0; b.setAttribute('role', 'button');
+    b.title = '「' + s.name + '」 적용';
+    const apply = () => { applyStyle(d); snack('「' + s.name + '」 스타일을 적용했어요'); };
+    b.addEventListener('click', apply);
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); } });
+    const del = document.createElement('button');
+    del.className = 'look-del'; del.textContent = '×'; del.setAttribute('aria-label', '「' + s.name + '」 삭제');
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!confirm('「' + s.name + '」 스타일을 지울까요?')) return;
+      myStyles.splice(i, 1); saveStyles(); renderLooks();
+    });
+    b.append(lookSketch(key, d), Object.assign(document.createElement('span'), { className: 'look-nm', textContent: s.name }), del);
+    box.append(b);
+  });
+  const save = document.createElement('button');
+  save.className = 'look save'; save.title = '지금 모양·색·글꼴·간격을 내 스타일로 저장';
+  save.append(Object.assign(document.createElement('span'), { className: 'look-pv plus', textContent: '+' }),
+              Object.assign(document.createElement('span'), { className: 'look-nm', textContent: '지금 모양 저장' }));
+  save.addEventListener('click', saveCurrentStyle);
+  box.append(save);
+}
+const renderStyles = renderLooks;
+function saveCurrentStyle() {
   const name = (prompt('이 스타일의 이름을 지어 주세요', '내 스타일 ' + (myStyles.length + 1)) || '').trim();
   if (!name) return;
   const i = myStyles.findIndex(s => s.name === name);
@@ -2345,9 +2401,14 @@ $('saveStyle').addEventListener('click', () => {
   } else {
     myStyles.push(item);
   }
-  saveStyles(); renderStyles();
+  saveStyles(); renderLooks();
   snack('「' + name + '」(으)로 저장했어요');
-});
+}
+/* 접힌 "제목 · 출처" 줄에 지금 적힌 제목을 보여준다 */
+function syncInfoSum() {
+  const t = (st.title || '').trim(), s = (st.source || '').trim();
+  $('infoSum').textContent = t || s ? [t, s].filter(Boolean).join(' · ') : '선택';
+}
 
 /* 대화 쪽만 비운다 — 스타일은 그대로 */
 function clearTalk() {
