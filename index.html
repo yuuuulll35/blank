@@ -55,7 +55,8 @@ input,textarea,select{font:inherit; color:var(--ink)}
   flex:none; display:flex; align-items:center; gap:2px;
   padding:10px 16px 0; border-bottom:1px solid var(--line);
 }
-.side-tabs .extlink{margin-left:auto}
+.side-tabs .tab-act{margin-left:auto; padding:4px 8px; font-size:12px; white-space:nowrap}
+.side-tabs .extlink{margin-left:8px; white-space:nowrap}
 .side-pane{flex:1; min-height:0; overflow-y:auto; padding:16px 18px 32px; scrollbar-width:none}
 .side-pane::-webkit-scrollbar{display:none}
 .side-pane[hidden]{display:none}
@@ -313,6 +314,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
   <div class="side-tabs" role="tablist">
     <button class="tabbtn on" id="sideTalk" role="tab" aria-selected="true" aria-controls="paneTalk">대화 넣기</button>
     <button class="tabbtn" id="sideStyle" role="tab" aria-selected="false" aria-controls="paneStyle">스타일</button>
+    <button class="btn ghost tab-act" id="sampleBtn" title="예시 대화로 카드가 어떻게 나오는지 보기">예시 보기</button>
     <a class="extlink" id="extLink" href="https://solar-crush-b61.notion.site/3cc75b100d6b80388c10fd6df5338a74" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M9.4 1.2a2 2 0 0 1 2 2v.6h1.4a1.4 1.4 0 0 1 1.4 1.4v2.2h-.7a1.5 1.5 0 0 0 0 3h.7v2.2a1.4 1.4 0 0 1-1.4 1.4h-2.2v-.7a1.5 1.5 0 0 0-3 0v.7H5.4A1.4 1.4 0 0 1 4 12.6v-2.2h-.6a2 2 0 0 1 0-4H4V4.2a1.4 1.4 0 0 1 1.4-1.4h1.4v-.6a2 2 0 0 1 2-2Z"/></svg>발췌 수집기 설치하기</a>
   </div>
 
@@ -330,14 +332,10 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <div class="ctrl" id="rowSource"><span id="sourceLabel">출처 표기</span><input type="text" id="sourceIn" placeholder="카드 맨 아래 작은 글씨 (비우면 생략)"></div>
       <div class="ctrl" id="rowDate"><span>날짜</span><input type="datetime-local" id="dateIn"></div>
     </details>
-    <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요."></textarea>
+    <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요.&#10;· 화자가 틀리게 나뉘면 편집 목록의 색 칩을 눌러 바꿀 수 있어요."></textarea>
     <div class="row">
       <button class="btn half" id="resetTalk">대화 초기화</button>
-      <button class="btn half" id="sampleBtn">예시 채우기</button>
-    </div>
-    <p class="hint">화자 인식이 틀려도 괜찮아요. 왼쪽 편집 목록에서 색 칩을 누르면 NPC, PC, 나레이션 순서로 바뀌어요.</p>
-    <div class="row">
-      <button class="btn primary wide" id="parseBtn">적용하기</button>
+      <button class="btn primary half" id="parseBtn">적용하기</button>
     </div>
   </section>
 
@@ -2604,7 +2602,10 @@ $('parseBtn').addEventListener('click', () => {
   renderList(); renderCardSoon();
   setTab('prev');
 });
+/* 예시 보기: 예시 대화를 넣고 바로 적용해 미리보기로 보여준다 (넣어 둔 대화가 있으면 묻고 바꾼다) */
 $('sampleBtn').addEventListener('click', () => {
+  if (state.msgs.length && !confirm('지금 넣어 둔 대화 대신 예시를 볼까요? 넣어 둔 대화는 지워져요.')) return;
+  state.msgs = [];
   /* 예시는 지금 선언된 이름으로 만든다. 이름을 박아두면 이미 다른 이름을
      적어둔 경우 화자가 어긋나 PC 대사가 NPC로 분류된다 */
   if (!st.myName) { st.myName = '나'; }
@@ -2624,6 +2625,7 @@ $('sampleBtn').addEventListener('click', () => {
     '',
     '그가 사다리에서 내려오는 소리가, ==빗소리 사이에서 유난히 크게== 들렸다.',
   ].join('\n');
+  $('parseBtn').click();
 });
 document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
   const role = b.dataset.add;
