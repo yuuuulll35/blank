@@ -165,6 +165,8 @@ textarea#raw{
 .msg-who input{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:12em}
 .msg-note{font-size:11.5px; color:var(--muted)}
 .msg-acts{margin:0; justify-content:space-between; flex-wrap:nowrap; gap:12px}
+.msg-tools{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+.msg-tools .btn{padding:5px 12px; font-size:12.5px}
 .msg.off{opacity:.42}
 .msg input[type=checkbox]{
   flex:none; width:15px; height:15px; margin:calc((var(--line1) - 15px) / 2) 0 0;
@@ -538,12 +540,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn ghost" id="selAll">전체 선택</button>
       <button class="btn ghost" id="selNone">전체 해제</button>
       <button class="btn ghost" id="selInv">선택 반전</button>
-      <button class="btn" id="splitBtn">문단 나누기</button>
-      <span class="vsep"></span>
-      <button class="btn" id="fmtHl">형광펜</button>
-      <button class="btn" id="fmtB">굵게</button>
-      <button class="btn ghost" id="fmtClear">서식 지우기</button>
-      <span class="hint" style="margin:0">문단을 누르면 펼쳐서 고쳐요. 형광펜·굵게는 펼친 문단에서 글자를 고른 뒤 눌러요.</span>
+      <span class="hint" style="margin:0 0 0 auto">문단을 누르면 펼쳐서 고쳐요 · 체크한 문단만 카드에 들어가요</span>
     </div>
     <div id="list"></div>
     <div id="empty">아직 넣은 대화가 없어요. 오른쪽 '대화 넣기' 탭에 붙여넣거나, <br>아래 버튼으로 직접 추가할 수 있어요.</div>
@@ -687,7 +684,6 @@ function parseRaw(raw, myName, charName) {
 }
 
 /* ---------- 목록 렌더 ---------- */
-let activeTa = null; /* 마지막으로 포커스된 문단 입력창 */
 function wrapSel(ta, mark) {
   const s = ta.selectionStart, e = ta.selectionEnd;
   if (s === e) return;
@@ -702,7 +698,7 @@ let lastChecked = -1;
 /* 편집 목록: 접힌 줄은 두 줄 미리보기, 누르면 그 문단만 펼쳐져서 이름·사진(채팅형)·전문을 큰 입력칸으로 고친다.
    [완료](또는 Ctrl+Enter·Esc)로 다시 접는다. 한 번에 한 문단만 펼친다 */
 let openId = null;
-function closeEditor() { openId = null; activeTa = null; renderList(); }
+function closeEditor() { openId = null; renderList(); }
 function renderList() {
   const list = $('list');
   /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
@@ -807,20 +803,50 @@ function renderList() {
     ta.value = msg.text;
     const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 140) + 'px'; };
     ta.addEventListener('input', () => { msg.text = ta.value; grow(); renderCardSoon(); });
-    ta.addEventListener('focus', () => { activeTa = ta; });
     ta.addEventListener('keydown', e => {
       if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); closeEditor(); }
     });
     ta._grow = grow;
     focusTa = ta;
+    /* 편집 도구는 이 문단 안에만. 누를 때 입력칸 선택이 풀리지 않게 mousedown 기본 동작을 막는다 */
+    const tool = (label, title, fn, cls) => {
+      const b = document.createElement('button');
+      b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label; b.title = title;
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', fn);
+      return b;
+    };
+    const tools = document.createElement('div');
+    tools.className = 'msg-tools';
+    tools.append(
+      tool('형광펜', '고른 글자에 형광펜', () => { wrapSel(ta, '=='); syncTa(ta); }),
+      tool('굵게', '고른 글자를 굵게', () => { wrapSel(ta, '**'); syncTa(ta); }),
+      tool('서식 지우기', '고른 글자(고른 게 없으면 문단 전체)의 형광펜·굵게 빼기', () => clearFmt(ta), 'ghost'),
+      Object.assign(document.createElement('span'), { className: 'vsep' }),
+      /* 커서 자리에서 둘로: 뒤쪽은 새 문단이 되고 바로 펼쳐진다 */
+      tool('여기서 나누기', '커서가 있는 자리에서 문단을 둘로 나눠요', () => {
+        const pos = ta.selectionStart, a = ta.value.slice(0, pos).trim(), b = ta.value.slice(pos).trim();
+        if (!a || !b) { snack('나눌 자리에 커서를 두고 눌러 주세요'); ta.focus(); return; }
+        msg.text = a;
+        const next = { id: uid(), role: msg.role, name: msg.name, text: b, sel: msg.sel };
+        state.msgs.splice(i + 1, 0, next);
+        openId = next.id; renderList(); renderCardSoon();
+      }),
+    );
+    if (/\n\s*\n/.test(msg.text)) {
+      tools.append(tool('빈 줄마다 나누기', '빈 줄로 떨어진 덩어리마다 따로 문단으로 (대사면 화자 유지, 아니면 나레이션)', () => {
+        state.msgs.splice(i, 1, ...splitMsg(msg));
+        closeEditor(); renderCardSoon();
+      }));
+    }
     const acts = document.createElement('div');
     acts.className = 'row msg-acts';
     const done = document.createElement('button');
     done.className = 'btn primary'; done.textContent = '완료';
     done.title = 'Ctrl+Enter 또는 Esc';
     done.addEventListener('click', closeEditor);
-    acts.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '글자를 고른 뒤 위의 형광펜·굵게를 누르면 적용돼요' }), done);
-    body.append(ta, acts);
+    acts.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '형광펜·굵게는 글자를 고른 뒤 눌러요' }), done);
+    body.append(tools, ta, acts);
     row.append(body);
     list.append(row);
   });
@@ -828,7 +854,7 @@ function renderList() {
     list.scrollTop = keepScroll;
     if (focusTa) {
       focusTa._grow();
-      if (document.activeElement !== focusTa) { focusTa.focus({ preventScroll: true }); activeTa = focusTa; }
+      if (document.activeElement !== focusTa) focusTa.focus({ preventScroll: true });
       focusTa.closest('.msg').scrollIntoView({ block: 'nearest' });
     }
   });
@@ -2105,17 +2131,9 @@ function setTab(t) {
 $('tabEdit').addEventListener('click', () => setTab('edit'));
 $('tabPrev').addEventListener('click', () => setTab('preview'));
 
-/* ---------- 서식 툴바 (포커스된 문단의 선택 영역에 적용) ---------- */
+/* ---------- 서식 (펼친 문단 입력칸의 선택 글자에 적용) ---------- */
 function syncTa(ta) { ta.dispatchEvent(new Event('input')); }
-[['fmtHl', '=='], ['fmtB', '**']].forEach(([id, mark]) => {
-  const b = $(id);
-  b.addEventListener('mousedown', e => e.preventDefault());
-  b.addEventListener('click', () => { if (activeTa) { wrapSel(activeTa, mark); syncTa(activeTa); } });
-});
-$('fmtClear').addEventListener('mousedown', e => e.preventDefault());
-$('fmtClear').addEventListener('click', () => {
-  const ta = activeTa;
-  if (!ta) return;
+function clearFmt(ta) {
   const a = ta.selectionStart, b = ta.selectionEnd;
   if (a !== b) {
     const mid = ta.value.slice(a, b).replace(/==|\*\*/g, '');
@@ -2125,7 +2143,7 @@ $('fmtClear').addEventListener('click', () => {
     ta.value = ta.value.replace(/==|\*\*/g, '');
   }
   ta.focus(); syncTa(ta);
-});
+}
 
 /* ---------- 컨트롤 바인딩 ---------- */
 const PLACEHOLDERS = {
@@ -2744,10 +2762,6 @@ $('clearBtn').addEventListener('click', () => {
 $('selAll').addEventListener('click', () => { state.msgs.forEach(m => m.sel = true); renderList(); renderCardSoon(); });
 $('selNone').addEventListener('click', () => { state.msgs.forEach(m => m.sel = false); renderList(); renderCardSoon(); });
 $('selInv').addEventListener('click', () => { state.msgs.forEach(m => m.sel = !m.sel); renderList(); renderCardSoon(); });
-$('splitBtn').addEventListener('click', () => {
-  state.msgs = state.msgs.flatMap(m => m.sel ? splitMsg(m) : [m]);
-  renderList(); renderCardSoon();
-});
 
 /* ---------- 확장/북마클릿 연동: #d=base64url(JSON) ---------- */
 try {
