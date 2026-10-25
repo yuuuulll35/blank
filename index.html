@@ -2797,6 +2797,24 @@ function splitMsg(m) {
   }));
 }
 
+/* 번역 줄: 외국어 대사 바로 아래 괄호로 감싼 한 줄 "(…)" 은 그 대사의 번역이라 같은 화자로 둔다.
+   바로 앞이 대사이고 그 대사가 번역 줄이 아닐 때만 — 번역 뒤에 이어지는 괄호 줄, 서술 뒤의 괄호 줄은 서술 그대로.
+   발췌 수집기 예전 버전으로 복사한 데이터와 붙여넣은 글 모두에 적용 */
+const PAREN_LINE = /^[(（][\s\S]*[)）]$/;
+function attachTranslations(list) {
+  let prevDialog = null;
+  for (const m of list) {
+    const t = m.text.trim();
+    if (prevDialog && m.role === 'narr' && PAREN_LINE.test(t)) {
+      m.role = prevDialog.role; m.name = prevDialog.name;
+      prevDialog = null;
+      continue;
+    }
+    prevDialog = m.role !== 'narr' && !PAREN_LINE.test(t) ? m : null;
+  }
+  return list;
+}
+
 /* 확장프로그램(발췌 수집기)이 복사한 JSON도 그대로 붙여넣어 인식 */
 function parseExtension(raw) {
   const t = raw.trim();
@@ -2821,7 +2839,7 @@ function parseExtension(raw) {
 $('parseBtn').addEventListener('click', () => {
   const raw = $('raw').value;
   if (!raw.trim()) return;
-  state.msgs = state.msgs.concat(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
+  state.msgs = state.msgs.concat(attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName)));
   $('raw').value = '';
   autoAddCast();
   renderList(); renderCardSoon();
