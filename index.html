@@ -157,6 +157,7 @@ textarea#raw{
 }
 .msg.open{border-color:var(--accent)}
 .msg-edit{display:flex; flex-direction:column; gap:10px; padding:10px 2px 2px 23px}
+.msg-thumb{display:block; max-height:72px; max-width:160px; border-radius:6px; border:1px solid var(--line)}
 .msg-who{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .msg-who label{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:650; color:var(--muted)}
 .msg-who input{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:12em}
@@ -171,6 +172,7 @@ details.cast > summary::-webkit-details-marker{display:none}
 .cast-name{flex:1 1 120px; min-width:0; padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel2)}
 .cast-role{flex:none}
 .cast-role button{padding:4px 11px; font-size:12px}
+.cast-color[hidden]{display:none}
 .cast-color{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); cursor:pointer}
 .cast-color input{width:30px; height:24px; padding:0; border:1px solid var(--line); border-radius:6px; background:none; cursor:pointer}
 .cast-reset{padding:2px 6px; font-size:11.5px}
@@ -182,7 +184,7 @@ details.cast > summary::-webkit-details-marker{display:none}
 .msg-tools .btn{padding:5px 12px; font-size:12.5px}
 .msg.off{opacity:.42}
 .msg input[type=checkbox]{
-  flex:none; width:15px; height:15px; margin:calc((var(--line1) - 15px) / 2) 0 0;
+  flex:none; width:19px; height:19px; margin:calc((var(--line1) - 19px) / 2) 0 0; cursor:pointer;
   accent-color:var(--accent);
 }
 .chip{
@@ -360,7 +362,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 
   <section class="side-pane" id="paneTalk" role="tabpanel">
     <!-- 제목·출처는 꾸밈이 아니라 글 내용이라 대화와 같이 적는다. 형태마다 쓰는 칸만 보인다 -->
-    <details class="more info" id="infoBox">
+    <details class="more info" id="infoBox" open>
       <summary>제목 · 출처 <span class="sum-val" id="infoSum">선택</span></summary>
       <div class="ctrl" id="rowHead" hidden><span>머리글</span><input type="text" id="headIn" placeholder="쪽 위 작은 글씨 (비우면 생략)"></div>
       <div class="ctrl" id="rowTitle"><span id="titleLabel">제목</span><input type="text" id="titleIn" placeholder="카드 맨 위 제목 (비우면 생략)"></div>
@@ -560,6 +562,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn" data-add="narr">＋ 나레이션</button>
       <button class="btn" data-add="char">＋ NPC 대사</button>
       <button class="btn" data-add="me">＋ PC 대사</button>
+      <button class="btn" id="addImg">＋ 이미지</button>
+      <input type="file" id="imgFile" accept="image/*" hidden>
       <button class="btn ghost" id="clearBtn">모두 지우기</button>
     </div>
   </section>
@@ -708,6 +712,36 @@ function wrapSel(ta, mark) {
 const ROLE_LABEL = { char:'NPC', me:'PC', narr:'나레이션' };
 let lastChecked = -1;
 
+function pickImage(at) { imgAt = at; $('imgFile').click(); }
+let imgAt = 0;
+function loadImageFile(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const raw = new Image();
+    raw.onload = () => {
+      const k = Math.min(1, 1200 / raw.naturalWidth);
+      const c = document.createElement('canvas');
+      c.width = Math.round(raw.naturalWidth * k); c.height = Math.round(raw.naturalHeight * k);
+      c.getContext('2d').drawImage(raw, 0, 0, c.width, c.height);
+      const src = file.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.9);
+      const img = new Image();
+      img.onload = () => {
+        const m = { id: uid(), role: 'narr', name: '', text: '', sel: true, img: { src, img } };
+        state.msgs.splice(Math.min(imgAt, state.msgs.length), 0, m);
+        openId = null; renderList(); renderCardSoon();
+        snack('이미지를 넣었어요');
+      };
+      img.src = src;
+    };
+    raw.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function drawImgBlock(ctx, measure, img, x, maxW, y) {
+  const w = Math.min(maxW, img.naturalWidth), h = Math.round(w * img.naturalHeight / img.naturalWidth);
+  if (!measure) ctx.drawImage(img, x + Math.round((maxW - w) / 2), y, w, h);
+  return h;
+}
 /* 편집 목록: 접힌 줄은 두 줄 미리보기, 누르면 그 문단만 펼쳐져서 이름·사진(채팅형)·전문을 큰 입력칸으로 고친다.
    [완료](또는 Ctrl+Enter·Esc)로 다시 접는다. 한 번에 한 문단만 펼친다 */
 let openId = null;
@@ -769,7 +803,18 @@ function renderList() {
     head.className = 'msg-head';
     const prev = document.createElement('div');
     prev.className = 'msg-prev';
-    prev.textContent = msg.text.replace(/==|\*\*/g, '') || '(빈 문단)';
+    prev.textContent = msg.text.replace(/==|\*\*|__/g, '') || '(빈 문단)';
+    if (msg.img) {
+      chip.textContent = '이미지'; chip.className = 'chip narr'; chip.onclick = null;
+      const cl = chip.cloneNode(true); chip.replaceWith(cl);
+      prev.textContent = '';
+      const th = document.createElement('img'); th.src = msg.img.src; th.className = 'msg-thumb'; th.alt = '';
+      prev.append(th);
+      head.append(cb, cl, prev, del);
+      row.append(head);
+      list.append(row);
+      return;
+    }
     head.append(cb, chip, prev, del);
     row.append(head);
     if (!open) {
@@ -834,7 +879,8 @@ function renderList() {
     tools.append(
       tool('형광펜', '고른 글자에 형광펜', () => { wrapSel(ta, '=='); syncTa(ta); }),
       tool('굵게', '고른 글자를 굵게', () => { wrapSel(ta, '**'); syncTa(ta); }),
-      tool('서식 지우기', '고른 글자(고른 게 없으면 문단 전체)의 형광펜·굵게 빼기', () => clearFmt(ta), 'ghost'),
+      tool('기울임', '고른 글자를 기울임', () => { wrapSel(ta, '__'); syncTa(ta); }),
+      tool('서식 지우기', '고른 글자(고른 게 없으면 문단 전체)의 형광펜·굵게·기울임 빼기', () => clearFmt(ta), 'ghost'),
       Object.assign(document.createElement('span'), { className: 'vsep' }),
       /* 커서 자리에서 둘로: 뒤쪽은 새 문단이 되고 바로 펼쳐진다 */
       tool('여기서 나누기', '커서가 있는 자리에서 문단을 둘로 나눠요', () => {
@@ -846,6 +892,7 @@ function renderList() {
         openId = next.id; renderList(); renderCardSoon();
       }),
     );
+    tools.append(tool('이미지 넣기', '이 문단 아래에 이미지를 넣어요', () => pickImage(i + 1)));
     if (/\n\s*\n/.test(msg.text)) {
       tools.append(tool('빈 줄마다 나누기', '빈 줄로 떨어진 덩어리마다 따로 문단으로 (대사면 화자 유지, 아니면 나레이션)', () => {
         state.msgs.splice(i, 1, ...splitMsg(msg));
@@ -968,11 +1015,12 @@ function stripQuotes(text) {
 
 /* ---------- 서식 런 엔진: ==형광펜== / **굵게** ---------- */
 function parseRuns(text, quotes) {
-  const out = []; let hl = false, b = false, q = false, buf = '';
-  const flush = () => { if (buf) { out.push({ t: buf, hl, b, q }); buf = ''; } };
+  const out = []; let hl = false, b = false, it = false, q = false, buf = '';
+  const flush = () => { if (buf) { out.push({ t: buf, hl, b, i: it, q }); buf = ''; } };
   for (let i = 0; i < text.length; i++) {
     if (text.startsWith('==', i)) { flush(); hl = !hl; i++; continue; }
     if (text.startsWith('**', i)) { flush(); b = !b; i++; continue; }
+    if (text.startsWith('__', i)) { flush(); it = !it; i++; continue; }
     if (quotes) {
       const c = text[i];
       if (!q && (c === '"' || c === '“' || c === '「' || c === '『')) { flush(); q = true; buf += c; continue; }
@@ -991,12 +1039,12 @@ function wrapRuns(ctx, text, maxW, px, baseWeight = 400, o = {}) {
     if (!str) return;
     const w = ctx.measureText(str).width;
     const last = segs[segs.length - 1];
-    if (last && last.hl === run.hl && last.b === run.b && last.q === run.q) { last.t += str; last.w += w; }
-    else segs.push({ t: str, hl: run.hl, b: run.b, q: run.q, w });
+    if (last && last.hl === run.hl && last.b === run.b && last.i === run.i && last.q === run.q) { last.t += str; last.w += w; }
+    else segs.push({ t: str, hl: run.hl, b: run.b, i: run.i, q: run.q, w });
     x += w;
   };
   for (const run of parseRuns(text, o.quotes)) {
-    ctx.font = fontStr(px, run.b ? 700 : baseWeight);
+    ctx.font = fontStr(px, run.b ? 700 : baseWeight, run.i);
     run.t.split('\n').forEach((part, pi) => {
       if (pi > 0) pushLine();
       const tokens = part.match(/[A-Za-z0-9@#&'’.,!?%~^()\[\]\-]+|\s+|./gsu) || [];
@@ -1037,7 +1085,7 @@ function drawRunLine(ctx, line, x0, yBase, px, inkColor, opts = {}) {
   if (CAN_LS) ctx.letterSpacing = sp ? sp.toFixed(2) + 'px' : '0px';
   for (const s of line.segs) {
     const sw = s.w + sp * [...s.t].length;
-    ctx.font = fontStr(px, s.b ? 700 : (opts.baseWeight || 400));
+    ctx.font = fontStr(px, s.b ? 700 : (opts.baseWeight || 400), s.i);
     if (s.hl && opts.hlColor) {
       ctx.fillStyle = opts.hlColor;
       ctx.fillRect(x - 1, yBase - Math.round(px * 1.02), sw + 2, Math.round(px * 1.34));
@@ -1115,8 +1163,8 @@ const FONT_FALLBACK = {
   'Pretendard Variable':'sans-serif', 'Gowun Dodum':'sans-serif', 'IBM Plex Sans KR':'sans-serif',
   'Jua':'sans-serif', 'Do Hyeon':'sans-serif',
 };
-function fontStr(px, weight=400) {
-  return `${weight} ${px}px "${st.font}",${FONT_FALLBACK[st.font] || 'sans-serif'}`;
+function fontStr(px, weight=400, italic=false) {
+  return `${italic ? 'italic ' : ''}${weight} ${px}px "${st.font}",${FONT_FALLBACK[st.font] || 'sans-serif'}`;
 }
 
 /* 페이지 분할 상태: 렌더 중인 페이지의 메시지 부분집합과 위치 정보 */
@@ -1430,6 +1478,12 @@ function drawBook(ctx, measure) {
   ctx.font = fontStr(size, 400);
   sel.forEach((m, idx) => {
     if (idx > 0 && K.gap) y += GAP(size, K.gap);
+    if (m.img) {
+      y += Math.round(size * 0.8);
+      y += drawImgBlock(ctx, measure, m.img.img, colX, maxW, y);
+      y += Math.round(size * 0.8);
+      return;
+    }
     const lines = wrapRuns(ctx, m.text, maxW, size, 400, { indent });
     lines.forEach((line, li) => {
       y += lh;
@@ -1758,6 +1812,12 @@ function drawCard(ctx, measure) {
     const RO = hlOpts(null);
     sel.forEach((m, idx) => {
       if (idx > 0) y += GAP(size, 1.1);
+      if (m.img) {
+        y += Math.round(size * 0.6);
+        y += drawImgBlock(ctx, measure, m.img.img, pad, W - pad * 2, y);
+        y += Math.round(size * 0.6);
+        return;
+      }
       if (m.role === 'narr') {
         /* 나레이션: 말풍선 사이의 전체 폭 문단 */
         y += Math.round(size * 0.9);
@@ -2001,6 +2061,7 @@ function runsHtml(text, qColor) {
   return parseRuns(text, !!qColor).map(r => {
     let h = escHtml(r.t);
     if (r.b) h = `<b style="font-weight:700">${h}</b>`;
+    if (r.i) h = `<i style="font-style:italic">${h}</i>`;
     if (r.q) h = `<span style="color:${qColor}">${h}</span>`;
     if (r.hl) h = `<mark style="${css({ background: st.hlc, color: textOn(hexRgb(st.hlc)), padding: '0 1px' })}">${h}</mark>`;
     return h;
@@ -2045,6 +2106,7 @@ function exportHtml() {
       if (title) out.push(`<h1 style="margin:0 0 1.25em;font-family:'Noto Sans KR','Pretendard Variable',sans-serif;font-size:2.4em;font-weight:900;line-height:1.26">${escHtml(title)}</h1>`);
     }
     sel.forEach((msg, i) => {
+      if (msg.img) { out.push(`<p style="margin:1em 0;text-align:center"><img src="${msg.img.src}" alt="" style="max-width:100%;height:auto"></p>`); return; }
       out.push(`<p style="${css({ margin: 0, 'margin-top': i && K.gap ? (K.gap * pg) + 'em' : '',
         'text-indent': K.indent ? K.indent + 'em' : '', 'line-height': String(+(K.lh * lg).toFixed(3)),
         'white-space': 'pre-wrap', 'text-align': st.justify ? 'justify' : '' })}">${runsHtml(msg.text)}</p>`);
@@ -2061,6 +2123,7 @@ function exportHtml() {
     const gap = (1.1 * pg) + 'em';
     sel.forEach((msg, i) => {
       const top = i ? gap : '0';
+      if (msg.img) { out.push(`<p style="margin:${top} 0 0;text-align:center"><img src="${msg.img.src}" alt="" style="max-width:100%;height:auto"></p>`); return; }
       if (msg.role === 'narr') {
         out.push(`<div style="${css({ margin: `${top} 0 0`, 'line-height': String(+(1.55 * lg).toFixed(3)), color: m(0.14),
           'text-align': st.narrAlign || 'left', 'white-space': 'pre-wrap' })}">${runsHtml(msg.text)}</div>`);
@@ -2112,7 +2175,7 @@ $('htmlBtn').addEventListener('click', async () => {
    지금 고른 대화와 스타일을 이 브라우저에 적어 두면 me.html 이 읽어서 보낸다.
    talk 은 대화 한 벌의 번호 — 대화를 비우면 새 번호라 블로그에도 새 글로 올라간다 */
 function exportPayload() {
-  const sel = state.msgs.filter(m => m.sel);
+  const sel = state.msgs.filter(m => m.sel && !m.img);
   const msgs = sel.map(m => ({ role: m.role, name: displayName(m), text: m.text, color: castColorFor(m) }));
   const used = new Set(msgs.map(m => m.name));
   const av = {};
@@ -2154,11 +2217,11 @@ function syncTa(ta) { ta.dispatchEvent(new Event('input')); }
 function clearFmt(ta) {
   const a = ta.selectionStart, b = ta.selectionEnd;
   if (a !== b) {
-    const mid = ta.value.slice(a, b).replace(/==|\*\*/g, '');
+    const mid = ta.value.slice(a, b).replace(/==|\*\*|__/g, '');
     ta.value = ta.value.slice(0, a) + mid + ta.value.slice(b);
     ta.setSelectionRange(a, a + mid.length);
   } else {
-    ta.value = ta.value.replace(/==|\*\*/g, '');
+    ta.value = ta.value.replace(/==|\*\*|__/g, '');
   }
   ta.focus(); syncTa(ta);
 }
@@ -2315,6 +2378,8 @@ function renderCast() {
     reset.title = '지금 색 조합 기준 기본 말풍선 색으로';
     reset.addEventListener('click', () => { c.color = defaultBubble(c.role); persist(); renderCast(); renderCardSoon(); });
     col.append(ci, Object.assign(document.createElement('span'), { textContent: '말풍선' }));
+    const chat = st.mode === 'chat';
+    col.hidden = !chat; if (!chat) reset.hidden = true;
     const del = document.createElement('button');
     del.className = 'del'; del.textContent = '✕'; del.title = '인물 지우기';
     del.hidden = st.cast.length <= 1;
@@ -2533,9 +2598,8 @@ const LOOKS = [
   { key:'web',    name:'아티클',    set:{ mode:'book', book:'web' } },
   { key:'head',   name:'헤드라인',  set:{ mode:'book', book:'head' } },
   { key:'bubble', name:'말풍선',    set:{ mode:'chat', bubble:'fill' } },
-  { key:'plain',  name:'대화 줄글', set:{ mode:'chat', bubble:'plain' } },
 ];
-const lookOn = l => st.mode === l.set.mode && (l.set.book ? st.book === l.set.book : st.bubble === l.set.bubble);
+const lookOn = l => st.mode === l.set.mode && (l.set.book ? st.book === l.set.book : true);
 /* 카드 속 작은 그림: 지금 색으로 줄을 그어 모양만 보여준다 [줄 폭(%), 줄 굵기, 정렬, 둥근 말풍선?] */
 const LOOK_SKETCH = {
   page:   [[34,3,'l'],[100,3,'l'],[100,3,'l'],[70,3,'l']],
@@ -2891,6 +2955,8 @@ $('clearBtn').addEventListener('click', () => {
   if (state.msgs.length && !confirm('불러온 대화를 모두 지울까요?')) return;
   state.msgs = []; renderList(); renderCardSoon();
 });
+$('addImg').addEventListener('click', () => pickImage(state.msgs.length));
+$('imgFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) loadImageFile(f); e.target.value = ''; });
 $('selAll').addEventListener('click', () => { state.msgs.forEach(m => m.sel = true); renderList(); renderCardSoon(); });
 $('selNone').addEventListener('click', () => { state.msgs.forEach(m => m.sel = false); renderList(); renderCardSoon(); });
 $('selInv').addEventListener('click', () => { state.msgs.forEach(m => m.sel = !m.sel); renderList(); renderCardSoon(); });

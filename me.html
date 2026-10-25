@@ -103,7 +103,7 @@ function show() {
   const m = document.createElement('div'); m.className = 'meta';
   m.textContent = `${MODE[log.mode] || log.mode} · ${log.msgs.length}문단 · ${new Date(last.at).toLocaleString('ko-KR')} 기준`;
   const pv = document.createElement('div'); pv.className = 'preview';
-  pv.textContent = log.msgs.slice(0, 4).map(x => x.text.replace(/==|\*\*/g, '')).join('\n');
+  pv.textContent = log.msgs.slice(0, 4).map(x => x.text.replace(/==|\*\*|__/g, '')).join('\n');
   box.append(t, m, pv);
   const id = ids()[last.talk];
   $('send').disabled = false;
