@@ -147,9 +147,24 @@ textarea#raw{
   /* 본문 첫 줄의 높이. 옆 컨트롤들은 전부 이 줄의 가운데에 맞춘다 */
   --line1: calc(1px * 2 + 3px * 2 + 13.5px * 1.7);
   --chip-h: 21px;
-  display:flex; gap:8px; align-items:flex-start;
-  border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:var(--panel2);
+  display:flex; flex-direction:column; gap:0;
+  border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:var(--panel2); flex:none;
 }
+.msg-head{display:flex; gap:8px; align-items:flex-start; cursor:pointer}
+.msg.open .msg-head{cursor:default}
+.msg:not(.open):hover{border-color:var(--muted)}
+/* 접힌 줄: 두 줄까지 보여주고 나머지는 펼쳐서 */
+.msg-prev{
+  flex:1; min-width:0; padding:3px 8px; font-size:13.5px; line-height:1.7; white-space:pre-wrap; word-break:keep-all; overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.msg.open{border-color:var(--accent)}
+.msg-edit{display:flex; flex-direction:column; gap:10px; padding:10px 2px 2px 23px}
+.msg-who{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.msg-who label{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:650; color:var(--muted)}
+.msg-who input{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:12em}
+.msg-note{font-size:11.5px; color:var(--muted)}
+.msg-acts{margin:0; justify-content:space-between; flex-wrap:nowrap; gap:12px}
 .msg.off{opacity:.42}
 .msg input[type=checkbox]{
   flex:none; width:15px; height:15px; margin:calc((var(--line1) - 15px) / 2) 0 0;
@@ -164,10 +179,10 @@ textarea#raw{
 .chip.char{background:var(--chip-char)} .chip.me{background:var(--chip-me)} .chip.narr{background:var(--chip-narr)}
 .msg{background:var(--panel)}
 .msg-ta{
-  flex:1; border:1px solid transparent; border-radius:6px; background:none;
-  padding:3px 8px; resize:none; overflow:hidden; line-height:1.7; font-size:13.5px; min-height:26px;
+  width:100%; border:1px solid var(--line); border-radius:8px; background:var(--panel2);
+  padding:10px 12px; resize:vertical; overflow:hidden; line-height:1.8; font-size:14px; min-height:140px;
 }
-.msg-ta:focus{outline:none; border-color:var(--accent); background:var(--panel2)}
+.msg-ta:focus{outline:none; border-color:var(--accent)}
 .msg .del{
   flex:none; width:24px; height:var(--line1); padding:0;
   display:flex; align-items:center; justify-content:center;
@@ -528,7 +543,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn" id="fmtHl">형광펜</button>
       <button class="btn" id="fmtB">굵게</button>
       <button class="btn ghost" id="fmtClear">서식 지우기</button>
-      <span class="hint" style="margin:0">문단 안에서 드래그로 선택한 부분에 적용돼요. Shift+클릭으로 체크 범위 선택.</span>
+      <span class="hint" style="margin:0">문단을 누르면 펼쳐서 고쳐요. 형광펜·굵게는 펼친 문단에서 글자를 고른 뒤 눌러요.</span>
     </div>
     <div id="list"></div>
     <div id="empty">아직 넣은 대화가 없어요. 오른쪽 '대화 넣기' 탭에 붙여넣거나, <br>아래 버튼으로 직접 추가할 수 있어요.</div>
@@ -684,6 +699,10 @@ const ROLE_LABEL = { char:'NPC', me:'PC', narr:'나레이션' };
 const ROLE_NEXT  = { char:'me', me:'narr', narr:'char' };
 let lastChecked = -1;
 
+/* 편집 목록: 접힌 줄은 두 줄 미리보기, 누르면 그 문단만 펼쳐져서 이름·사진(채팅형)·전문을 큰 입력칸으로 고친다.
+   [완료](또는 Ctrl+Enter·Esc)로 다시 접는다. 한 번에 한 문단만 펼친다 */
+let openId = null;
+function closeEditor() { openId = null; activeTa = null; renderList(); }
 function renderList() {
   const list = $('list');
   /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
@@ -691,13 +710,18 @@ function renderList() {
   list.innerHTML = '';
   $('empty').style.display = state.msgs.length ? 'none' : 'grid';
   renderAvatars();
+  if (!state.msgs.some(m => m.id === openId)) openId = null;
+  let focusTa = null;
   state.msgs.forEach((msg, i) => {
+    const open = msg.id === openId;
     const row = document.createElement('div');
-    row.className = 'msg' + (msg.sel ? '' : ' off');
+    row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '');
 
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = msg.sel;
+    cb.title = '카드에 넣기 (Shift+클릭으로 범위)';
     cb.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (e.shiftKey && lastChecked >= 0) {
         const [a, b] = [Math.min(lastChecked, i), Math.max(lastChecked, i)];
         for (let k = a; k <= b; k++) state.msgs[k].sel = cb.checked;
@@ -715,37 +739,98 @@ function renderList() {
     chip.className = 'chip ' + msg.role;
     chip.textContent = msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
     chip.title = '누르면 화자가 바뀌어요';
-    chip.addEventListener('click', () => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
       msg.role = ROLE_NEXT[msg.role];
       if (msg.role === 'me' && st.myName) msg.name = st.myName;
       if (msg.role === 'char' && !msg.name && st.charName) msg.name = st.charName;
-      chip.className = 'chip ' + msg.role;
-      chip.textContent = msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
-      row.className = 'msg' + (msg.sel ? '' : ' off');
-      renderAvatars(); renderCardSoon();
+      renderList(); renderCardSoon();
     });
-
-    const ta = document.createElement('textarea');
-    ta.className = 'msg-ta';
-    ta.value = msg.text;
-    ta.rows = 1;
-    const grow = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
-    ta.addEventListener('input', () => { msg.text = ta.value; grow(); renderCardSoon(); });
-    ta.addEventListener('focus', () => { activeTa = ta; });
-    ta._grow = grow;
 
     const del = document.createElement('button');
     del.className = 'del'; del.textContent = '✕'; del.title = '삭제';
-    del.addEventListener('click', () => {
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
       state.msgs.splice(i, 1); renderList(); renderCardSoon();
     });
 
-    row.append(cb, chip, ta, del);
+    const head = document.createElement('div');
+    head.className = 'msg-head';
+    const prev = document.createElement('div');
+    prev.className = 'msg-prev';
+    prev.textContent = msg.text.replace(/==|\*\*/g, '') || '(빈 문단)';
+    head.append(cb, chip, prev, del);
+    row.append(head);
+    if (!open) {
+      head.title = '눌러서 고치기';
+      head.addEventListener('click', () => { openId = msg.id; renderList(); });
+      list.append(row);
+      return;
+    }
+
+    /* ---- 펼친 편집 칸 ---- */
+    prev.textContent = '';
+    const body = document.createElement('div');
+    body.className = 'msg-edit';
+    if (msg.role !== 'narr') {
+      const line = document.createElement('div');
+      line.className = 'msg-who';
+      const nm = displayName(msg);
+      /* 채팅형에서는 이 화자의 사진도 여기서 고른다 */
+      if (st.mode === 'chat' && nm) {
+        const av = document.createElement('button');
+        av.className = 'avcircle' + (avatars[nm] ? ' has' : '');
+        av.title = avatars[nm] ? nm + ' 사진 바꾸기' : nm + ' 사진 고르기';
+        if (avatars[nm]) av.style.backgroundImage = 'url(' + avatars[nm].src + ')'; else av.textContent = nm.slice(0, 1);
+        av.addEventListener('click', () => { avTarget = nm; $('avFile').click(); });
+        line.append(av);
+      }
+      const lab = document.createElement('label');
+      lab.textContent = msg.role === 'me' ? 'PC 이름' : '이름';
+      const inp = document.createElement('input');
+      inp.value = nm;
+      inp.placeholder = msg.role === 'me' ? '예: 나' : (st.charName || '예: 세인');
+      /* PC는 한 사람이라 이름을 바꾸면 모든 PC 대사(대화 넣기 탭 PC 칸)가 같이 바뀐다 */
+      inp.addEventListener('change', () => {
+        const v = inp.value.trim();
+        if (msg.role === 'me') { st.myName = v; $('myName').value = v; persist(); }
+        else msg.name = v;
+        renderList(); renderCardSoon();
+      });
+      lab.append(inp);
+      line.append(lab);
+      if (msg.role === 'me') line.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '모든 PC 대사에 같이 바뀌어요' }));
+      body.append(line);
+    }
+    const ta = document.createElement('textarea');
+    ta.className = 'msg-ta';
+    ta.value = msg.text;
+    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 140) + 'px'; };
+    ta.addEventListener('input', () => { msg.text = ta.value; grow(); renderCardSoon(); });
+    ta.addEventListener('focus', () => { activeTa = ta; });
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); closeEditor(); }
+    });
+    ta._grow = grow;
+    focusTa = ta;
+    const acts = document.createElement('div');
+    acts.className = 'row msg-acts';
+    const done = document.createElement('button');
+    done.className = 'btn primary'; done.textContent = '완료';
+    done.title = 'Ctrl+Enter 또는 Esc';
+    done.addEventListener('click', closeEditor);
+    acts.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '글자를 고른 뒤 위의 형광펜·굵게를 누르면 적용돼요' }), done);
+    body.append(ta, acts);
+    row.append(body);
     list.append(row);
   });
   requestAnimationFrame(() => {
-    list.querySelectorAll('.msg-ta').forEach(t => t._grow && t._grow());
     list.scrollTop = keepScroll;
+    if (focusTa) {
+      focusTa._grow();
+      if (document.activeElement !== focusTa) { focusTa.focus({ preventScroll: true }); activeTa = focusTa; }
+      focusTa.closest('.msg').scrollIntoView({ block: 'nearest' });
+    }
   });
 }
 /* ---------- 캔버스 렌더 ---------- */
@@ -2536,6 +2621,7 @@ $('avApply').addEventListener('click', () => {
   img.onload = () => {
     if (avTarget) avatars[avTarget] = { img, src };
     renderAvatars(); renderCardSoon();
+    if (openId) renderList(); /* 펼친 문단의 사진 동그라미도 바꾼다 */
   };
   img.src = src;
   $('avModal').classList.remove('open');
