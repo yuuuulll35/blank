@@ -63,7 +63,7 @@ input,textarea,select{font:inherit; color:var(--ink)}
 /* 대화 넣기: 붙여넣은 대화를 한눈에 보도록 입력창이 남은 높이를 다 쓴다 */
 #paneTalk{display:flex; flex-direction:column; padding-bottom:18px}
 #paneTalk[hidden]{display:none}
-#paneTalk .names, #paneTalk .row, #paneTalk .hint{flex:none}
+#paneTalk .row, #paneTalk .hint{flex:none}
 .workspace{order:1; position:relative; min-height:0; display:flex; flex-direction:column; background:var(--bg)}
 .tabs{display:flex; gap:2px}
 .tabbtn{
@@ -109,9 +109,6 @@ input,textarea,select{font:inherit; color:var(--ink)}
   .preview-scroll{padding:20px}
 }
 
-.names{display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap}
-.names label{display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink); font-weight:650; flex:1; min-width:130px}
-.names input{padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel)}
 textarea#raw{
   width:100%; flex:1; min-height:240px; resize:none; padding:10px 12px;
   border:1px solid var(--line); border-radius:8px; background:var(--panel); line-height:1.7;
@@ -165,6 +162,24 @@ textarea#raw{
 .msg-who input{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:12em}
 .msg-note{font-size:11.5px; color:var(--muted)}
 .msg-acts{margin:0; justify-content:space-between; flex-wrap:nowrap; gap:12px}
+/* 등장인물 (편집 탭 맨 위) */
+details.cast{flex:none; border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:10px 12px; max-height:40vh; overflow:auto}
+details.cast > summary{cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:800; user-select:none}
+details.cast > summary::-webkit-details-marker{display:none}
+details.cast > summary::after{content:'▾'; margin-left:auto; color:var(--muted); transition:transform .15s ease}
+details.cast[open] > summary::after{transform:rotate(180deg)}
+#castList{display:flex; flex-direction:column; gap:6px; margin-top:10px}
+.cast-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.cast-name{flex:1 1 120px; min-width:0; padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel2)}
+.cast-role{flex:none}
+.cast-role button{padding:4px 11px; font-size:12px}
+.cast-color{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); cursor:pointer}
+.cast-color input{width:30px; height:24px; padding:0; border:1px solid var(--line); border-radius:6px; background:none; cursor:pointer}
+.cast-reset{padding:2px 6px; font-size:11.5px}
+.cast-row .del{flex:none; width:24px; height:28px; padding:0; border:none; background:none; color:var(--muted); font-size:14px}
+.cast-row .del:hover{color:var(--accent)}
+.cast-add{margin-top:6px; padding:5px 8px; font-size:12.5px}
+.msg-who select{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:auto; min-width:9em}
 .msg-tools{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
 .msg-tools .btn{padding:5px 12px; font-size:12.5px}
 .msg.off{opacity:.42}
@@ -274,13 +289,6 @@ details.info{border-top:none; padding:0 0 10px; flex:none}
 }
 .avcircle:hover{border-color:var(--accent); color:var(--ink)}
 .avcircle.has{border-style:solid}
-/* 캐릭터 사진: 화자마다 작은 칩 [사진 동그라미 이름 PC/NPC (사진 빼기)] 을 줄줄이 */
-#paneTalk .av-sec{flex:none; margin:0 0 12px}
-#avatarList{display:flex; flex-wrap:wrap; gap:8px}
-.avrow{display:inline-flex; align-items:center; gap:7px; padding:3px 8px 3px 3px; border:1px solid var(--line); border-radius:999px; background:var(--panel); max-width:100%}
-.avrow b{font-size:12.5px; font-weight:650; min-width:0; max-width:9em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.avrow .btn{padding:2px 8px; font-size:11px; border-radius:999px}
-.avrow .btn.ghost{padding:2px 4px}
 .toggle{display:flex; align-items:center; cursor:pointer}
 .toggle input{
   appearance:none; -webkit-appearance:none; margin:0; flex:none; cursor:pointer;
@@ -345,18 +353,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
   </div>
 
   <section class="side-pane" id="paneTalk" role="tabpanel">
-    <div class="names">
-      <label>PC (페르소나)<input id="myName" placeholder="예: 나"></label>
-      <label>NPC<input id="charName" placeholder="예: 세인"></label>
-    </div>
-    <!-- 캐릭터 사진: 화자 이름과 같은 자리에서. 동그라미를 누르면 사진을 고른다 (말풍선 모양에서 그려진다) -->
-    <div class="sec av-sec" id="secAvatar">
-      <div class="sec-title">캐릭터 사진 <span class="sec-note" id="avNote">동그라미를 누르면 사진을 골라요</span></div>
-      <div id="rowAvatar"><span id="avatarLabel" hidden>화자</span>
-        <div id="avatarList"></div>
-        <input type="file" id="avFile" accept="image/*" hidden>
-      </div>
-    </div>
     <!-- 제목·출처는 꾸밈이 아니라 글 내용이라 대화와 같이 적는다. 형태마다 쓰는 칸만 보인다 -->
     <details class="more info" id="infoBox">
       <summary>제목 · 출처 <span class="sum-val" id="infoSum">선택</span></summary>
@@ -536,6 +532,13 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
   </div>
 
   <section id="editPane">
+    <!-- 등장인물: 이름·사진·PC/NPC·말풍선 색. 기본은 PC·NPC 한 명씩, 대화를 적용하면 새 화자가 자동으로 더해진다 -->
+    <details class="cast" id="castBox" open>
+      <summary>등장인물 <span class="sum-val" id="castCount"></span><span class="sec-note">동그라미=사진 · PC는 오른쪽 말풍선</span></summary>
+      <div id="castList"></div>
+      <button class="btn ghost cast-add" id="castAdd">+ 인물 추가</button>
+      <input type="file" id="avFile" accept="image/*" hidden>
+    </details>
     <div class="edit-tools">
       <button class="btn ghost" id="selAll">전체 선택</button>
       <button class="btn ghost" id="selNone">전체 해제</button>
@@ -641,10 +644,12 @@ function fmtStamp(v) {
   return d.getFullYear() + '. ' + (d.getMonth() + 1) + '. ' + d.getDate() +
          '. ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
+/* 카드에 쓰는 이름: 대사에 적힌 이름, 없으면 그 역할의 첫 인물(PC/NPC) 이름 */
 function displayName(m) {
-  if (m.role === 'me' && st.myName.trim()) return st.myName.trim();
-  if (m.role === 'char' && !m.name && st.charName.trim()) return st.charName.trim();
-  return m.name || '';
+  if (m.name) return m.name;
+  if (m.role === 'me') return (st.myName || '').trim();
+  if (m.role === 'char') return (st.charName || '').trim();
+  return '';
 }
 
 /* 스낵바 */
@@ -692,7 +697,6 @@ function wrapSel(ta, mark) {
 }
 
 const ROLE_LABEL = { char:'NPC', me:'PC', narr:'나레이션' };
-const ROLE_NEXT  = { char:'me', me:'narr', narr:'char' };
 let lastChecked = -1;
 
 /* 편집 목록: 접힌 줄은 두 줄 미리보기, 누르면 그 문단만 펼쳐져서 이름·사진(채팅형)·전문을 큰 입력칸으로 고친다.
@@ -734,12 +738,14 @@ function renderList() {
     const chip = document.createElement('button');
     chip.className = 'chip ' + msg.role;
     chip.textContent = msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
-    chip.title = '누르면 화자가 바뀌어요';
+    chip.title = '누르면 다음 인물로 (등장인물 순서, 마지막은 나레이션)';
+    const cc = castColorFor(msg);
+    if (cc) { chip.style.background = cc; chip.style.color = textOn(hexRgb(cc)); }
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      msg.role = ROLE_NEXT[msg.role];
-      if (msg.role === 'me' && st.myName) msg.name = st.myName;
-      if (msg.role === 'char' && !msg.name && st.charName) msg.name = st.charName;
+      const opts = [...st.cast, null];
+      const cur = msg.role === 'narr' ? opts.length - 1 : opts.indexOf(castFor(msg));
+      setSpeaker(msg, opts[(cur + 1) % opts.length]);
       renderList(); renderCardSoon();
     });
 
@@ -768,12 +774,12 @@ function renderList() {
     prev.textContent = '';
     const body = document.createElement('div');
     body.className = 'msg-edit';
-    if (msg.role !== 'narr') {
+    {
+      /* 화자는 등장인물 중에서 고른다 (이름·사진·색은 위 등장인물에서) */
       const line = document.createElement('div');
       line.className = 'msg-who';
       const nm = displayName(msg);
-      /* 채팅형에서는 이 화자의 사진도 여기서 고른다 */
-      if (st.mode === 'chat' && nm) {
+      if (st.mode === 'chat' && msg.role !== 'narr' && nm) {
         const av = document.createElement('button');
         av.className = 'avcircle' + (avatars[nm] ? ' has' : '');
         av.title = avatars[nm] ? nm + ' 사진 바꾸기' : nm + ' 사진 고르기';
@@ -782,20 +788,18 @@ function renderList() {
         line.append(av);
       }
       const lab = document.createElement('label');
-      lab.textContent = msg.role === 'me' ? 'PC 이름' : '이름';
-      const inp = document.createElement('input');
-      inp.value = nm;
-      inp.placeholder = msg.role === 'me' ? '예: 나' : (st.charName || '예: 세인');
-      /* PC는 한 사람이라 이름을 바꾸면 모든 PC 대사(대화 넣기 탭 PC 칸)가 같이 바뀐다 */
-      inp.addEventListener('change', () => {
-        const v = inp.value.trim();
-        if (msg.role === 'me') { st.myName = v; $('myName').value = v; persist(); }
-        else msg.name = v;
+      lab.textContent = '화자';
+      const selEl = document.createElement('select');
+      st.cast.forEach((c, k) => selEl.add(new Option((c.name || (c.role === 'me' ? 'PC' : 'NPC')) + (c.role === 'me' ? ' (PC)' : ''), String(k))));
+      selEl.add(new Option('나레이션', 'narr'));
+      const cur = castFor(msg);
+      selEl.value = msg.role === 'narr' || !cur ? 'narr' : String(st.cast.indexOf(cur));
+      selEl.addEventListener('change', () => {
+        setSpeaker(msg, selEl.value === 'narr' ? null : st.cast[+selEl.value]);
         renderList(); renderCardSoon();
       });
-      lab.append(inp);
+      lab.append(selEl);
       line.append(lab);
-      if (msg.role === 'me') line.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '모든 PC 대사에 같이 바뀌어요' }));
       body.append(line);
     }
     const ta = document.createElement('textarea');
@@ -1789,11 +1793,13 @@ function drawCard(ctx, measure) {
       const bx = isMe ? rightEdge - bw : bxBase;
       if (!measure) {
         if (hasAv) drawAvatar(ctx, av, isMe ? W - pad - A : pad, blockTop, A);
+        /* 등장인물에서 고른 말풍선 색이 있으면 그 색, 없으면 색 조합의 기본 (PC 포인트색, NPC 옅은 색) */
+        const cc = castColorFor(m), ccRgb = cc ? hexRgb(cc) : null;
         if (!plain) {
-          ctx.fillStyle = isMe ? rgbCss(bubMe) : rgbCss(bubChar);
+          ctx.fillStyle = ccRgb ? rgbCss(ccRgb) : (isMe ? rgbCss(bubMe) : rgbCss(bubChar));
           bubblePath(ctx, bx, y, bw, bh, isMe ? 'right' : 'left'); ctx.fill();
         }
-        const col = plain ? st.ink : (isMe ? textOn(bubMe) : st.ink);
+        const col = plain ? st.ink : (ccRgb ? textOn(ccRgb) : (isMe ? textOn(bubMe) : st.ink));
         let ty = y + padY + size * 0.86;
         for (const line of lines) { drawRunLine(ctx, line, bx + padX, ty, size, col, RO); ty += lh; }
       }
@@ -2054,8 +2060,8 @@ function exportHtml() {
       const bub = css({
         display: 'inline-block', 'text-align': 'left', 'white-space': 'pre-wrap', 'line-height': String(+(1.55 * lg).toFixed(3)),
         padding: plain ? '0' : '.85em 1.6em',
-        background: plain ? '' : (me ? st.acc : rgbCss(mix(bg, ink, 0.1))),
-        color: plain ? st.ink : (me ? textOn(acc) : st.ink),
+        background: plain ? '' : (castColorFor(msg) || (me ? st.acc : rgbCss(mix(bg, ink, 0.1)))),
+        color: plain ? st.ink : (castColorFor(msg) ? textOn(hexRgb(castColorFor(msg))) : (me ? textOn(acc) : st.ink)),
         'border-radius': plain ? '' : (me ? '999px 0 999px 999px' : '0 999px 999px 999px'),
       });
       const who = st.showNames && name ? `<div style="font-size:.78em;font-weight:700;line-height:1.2;color:${m(0.2)};margin-bottom:.5em">${escHtml(name)}</div>` : '';
@@ -2095,7 +2101,7 @@ $('htmlBtn').addEventListener('click', async () => {
    talk 은 대화 한 벌의 번호 — 대화를 비우면 새 번호라 블로그에도 새 글로 올라간다 */
 function exportPayload() {
   const sel = state.msgs.filter(m => m.sel);
-  const msgs = sel.map(m => ({ role: m.role, name: displayName(m), text: m.text }));
+  const msgs = sel.map(m => ({ role: m.role, name: displayName(m), text: m.text, color: castColorFor(m) }));
   const used = new Set(msgs.map(m => m.name));
   const av = {};
   for (const [name, a] of Object.entries(avatars)) if (used.has(name) && a && a.img) av[name] = smallAvatar(a.img);
@@ -2177,57 +2183,146 @@ function speakerNames() {
   }
   return out;
 }
-/* 이 화자를 PC로 지정한다. 이름 문자열이 우연히 맞기를 기다리지 않고
-   목록에서 직접 고르게 한다 — 로그의 이름과 선언한 이름이 다를 수 있으므로 */
-function setPcName(name) {
-  st.myName = name;
+/* ---------- 등장인물 ----------
+   다인플이면 PC·NPC 말고도 여러 인물이 나온다. 인물마다 이름·PC/NPC·말풍선 색을 두고(st.cast),
+   사진은 이름을 열쇠로 avatars 에 둔다. 첫 PC·첫 NPC 이름은 예전 칸(st.myName·st.charName)으로도 내보내
+   파서·확장 가져오기·이름 없는 대사(확장으로 가져온 대화)가 그대로 동작하게 한다 */
+function ensureCast() {
+  if (!Array.isArray(st.cast) || !st.cast.length) {
+    st.cast = [{ name: st.myName || '', role: 'me', color: '' }, { name: st.charName || '', role: 'char', color: '' }];
+  }
+  /* 확장·주소로 이름이 들어오면 비어 있는 첫 PC/NPC 칸을 채운다 */
+  const pc = st.cast.find(c => c.role === 'me'), npc = st.cast.find(c => c.role === 'char');
+  if (pc && !pc.name && st.myName) pc.name = st.myName;
+  if (npc && !npc.name && st.charName) npc.name = st.charName;
+}
+function syncCastNames() {
+  const pc = st.cast.find(c => c.role === 'me'), npc = st.cast.find(c => c.role === 'char');
+  st.myName = pc ? pc.name : ''; st.charName = npc ? npc.name : '';
+}
+/* 이 대사의 인물 (이름이 비어 있으면 그 역할의 첫 인물) */
+function castFor(m) {
+  if (m.role === 'narr') return null;
+  const n = displayName(m);
+  return st.cast.find(c => n ? c.name === n : c.role === m.role) || null;
+}
+function setSpeaker(m, c) {
+  if (!c) { m.role = 'narr'; m.name = ''; return; }
+  m.role = c.role; m.name = c.name;
+}
+function castColorFor(m) { const c = castFor(m); return c && c.color ? c.color : ''; }
+/* 인물을 바꾸기 전에, 이름 없이 첫 PC/NPC를 따라가던 대사에 지금 이름을 박아 둔다 */
+function freezeNames() {
+  for (const m of state.msgs) if (m.role !== 'narr' && !m.name) m.name = displayName(m);
+}
+function castChanged() { syncCastNames(); persist(); renderList(); renderCardSoon(); }
+/* 대화를 적용하면 목록에 없는 화자를 인물로 더한다 (빈 기본 칸이 있으면 거기 먼저) */
+function autoAddCast() {
   for (const m of state.msgs) {
-    if (m.role === 'narr' || !m.name) continue;
-    m.role = (name && m.name === name) ? 'me' : 'char';
+    if (m.role === 'narr' || !m.name || st.cast.some(c => c.name === m.name)) continue;
+    const empty = st.cast.find(c => !c.name && c.role === m.role);
+    if (empty) empty.name = m.name;
+    else st.cast.push({ name: m.name, role: m.role, color: '' });
   }
-  persist(); syncControls(); renderList(); renderCardSoon();
+  syncCastNames(); persist();
 }
-function renderAvatars() {
-  const box = $('avatarList');
+function renameCast(c, v) {
+  const old = c.name;
+  if (v === old) return;
+  if (v && st.cast.some(x => x !== c && x.name === v)) { snack('같은 이름의 인물이 이미 있어요'); renderCast(); return; }
+  freezeNames();
+  for (const m of state.msgs) if (old && m.name === old) m.name = v;
+  if (old && avatars[old]) { if (v) avatars[v] = avatars[old]; delete avatars[old]; }
+  c.name = v;
+  castChanged();
+}
+function setCastRole(c, role) {
+  freezeNames();
+  c.role = role;
+  for (const m of state.msgs) if (m.role !== 'narr' && c.name && m.name === c.name) m.role = role;
+  castChanged();
+}
+function removeCast(c) {
+  freezeNames();
+  const n = state.msgs.filter(m => m.role !== 'narr' && c.name && m.name === c.name).length;
+  if (n && !confirm(`「${c.name}」의 대사 ${n}개는 나레이션으로 바뀌어요. 지울까요?`)) return;
+  for (const m of state.msgs) if (c.name && m.name === c.name) { m.role = 'narr'; m.name = ''; }
+  if (c.name) delete avatars[c.name];
+  st.cast.splice(st.cast.indexOf(c), 1);
+  castChanged();
+}
+/* 말풍선 기본색: PC는 포인트색, NPC는 배경에 글자색을 조금 섞은 색 (그림과 같은 식) */
+function defaultBubble(role) {
+  const ink = hexRgb(st.ink), bg = hexRgb(st.bg);
+  const c = role === 'me' ? hexRgb(st.acc) : mix(bg, ink, 0.1);
+  return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function renderCast() {
+  const box = $('castList');
   if (!box) return;
+  ensureCast();
+  $('castCount').textContent = st.cast.length + '명';
   box.innerHTML = '';
-  const names = speakerNames();
-  if (!names.length) {
-    const p = document.createElement('span');
-    p.className = 'hint'; p.style.margin = '0';
-    p.textContent = '대화를 적용하면 화자마다 동그라미가 생겨요';
-    box.append(p);
-    return;
-  }
-  for (const n of names) {
-    const row = document.createElement('div'); row.className = 'avrow';
-    /* 동그라미 자체가 사진 고르기 버튼. 사진이 없으면 이름 첫 글자를 보여준다 */
-    const th = document.createElement('button'); th.className = 'avcircle' + (avatars[n] ? ' has' : '');
-    th.title = avatars[n] ? n + ' 사진 바꾸기' : n + ' 사진 고르기';
-    if (avatars[n]) th.style.backgroundImage = 'url(' + avatars[n].src + ')'; else th.textContent = n.slice(0, 1);
-    th.addEventListener('click', () => { avTarget = n; $('avFile').click(); });
-    row.append(th);
-    const nm = document.createElement('b'); nm.textContent = n;
-    /* 블로그형의 작성자는 글쓴이일 뿐이라 PC/NPC 개념이 없다 */
-    let pc = null;
-    if (st.mode !== 'post') {
-      const isPc = !!st.myName && n === st.myName;
-      pc = document.createElement('button');
-      pc.className = 'btn' + (isPc ? ' primary' : '');
-      pc.textContent = isPc ? 'PC' : 'NPC';
-      pc.title = isPc ? '눌러서 NPC로' : '눌러서 이 화자를 PC로';
-      pc.addEventListener('click', () => setPcName(isPc ? '' : n));
+  st.cast.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'cast-row';
+    const av = document.createElement('button');
+    av.className = 'avcircle' + (c.name && avatars[c.name] ? ' has' : '');
+    av.title = c.name ? c.name + ' 사진 고르기' : '이름을 먼저 적어 주세요';
+    if (c.name && avatars[c.name]) av.style.backgroundImage = 'url(' + avatars[c.name].src + ')';
+    else av.textContent = (c.name || (c.role === 'me' ? 'P' : 'N')).slice(0, 1);
+    av.addEventListener('click', () => {
+      if (!c.name) { snack('이름을 먼저 적어 주세요'); row.querySelector('input').focus(); return; }
+      avTarget = c.name; $('avFile').click();
+    });
+    const nm = document.createElement('input');
+    nm.className = 'cast-name'; nm.value = c.name;
+    nm.placeholder = c.role === 'me' ? 'PC 이름' : 'NPC 이름';
+    nm.addEventListener('change', () => renameCast(c, nm.value.trim()));
+    nm.addEventListener('keydown', e => { if (e.key === 'Enter') nm.blur(); });
+    const role = document.createElement('div');
+    role.className = 'seg cast-role';
+    for (const [r, label] of [['me', 'PC'], ['char', 'NPC']]) {
+      const b = document.createElement('button');
+      b.textContent = label; b.className = c.role === r ? 'on' : '';
+      b.title = r === 'me' ? 'PC: 오른쪽 말풍선' : 'NPC: 왼쪽 말풍선';
+      b.addEventListener('click', () => { if (c.role !== r) setCastRole(c, r); });
+      role.append(b);
     }
-    row.append(nm); if (pc) row.append(pc);
-    if (avatars[n]) {
-      const del = document.createElement('button');
-      del.className = 'btn ghost'; del.textContent = '사진 빼기';
-      del.addEventListener('click', () => { delete avatars[n]; renderAvatars(); renderCardSoon(); });
-      row.append(del);
-    }
+    const col = document.createElement('label');
+    col.className = 'cast-color'; col.title = '말풍선 색';
+    const ci = document.createElement('input');
+    ci.type = 'color'; ci.value = c.color || defaultBubble(c.role);
+    ci.addEventListener('input', () => { c.color = ci.value; persist(); renderCardSoon(); reset.hidden = false; });
+    const reset = document.createElement('button');
+    reset.className = 'btn ghost cast-reset'; reset.textContent = '기본색'; reset.hidden = !c.color;
+    reset.title = '색 조합의 기본 말풍선 색으로';
+    reset.addEventListener('click', () => { c.color = ''; persist(); renderCast(); renderCardSoon(); });
+    col.append(ci, Object.assign(document.createElement('span'), { textContent: '말풍선' }));
+    const del = document.createElement('button');
+    del.className = 'del'; del.textContent = '✕'; del.title = '인물 지우기';
+    del.hidden = st.cast.length <= 1;
+    del.addEventListener('click', () => removeCast(c));
+    if (c.name && avatars[c.name]) {
+      const avDel = document.createElement('button');
+      avDel.className = 'btn ghost cast-reset'; avDel.textContent = '사진 빼기';
+      avDel.addEventListener('click', () => { delete avatars[c.name]; renderCast(); renderCardSoon(); if (openId) renderList(); });
+      row.append(av, nm, role, col, reset, avDel, del);
+    } else row.append(av, nm, role, col, reset, del);
     box.append(row);
-  }
+  });
 }
+/* 예전 이름 — 목록을 다시 그릴 때마다 불린다 */
+function renderAvatars() { renderCast(); }
+$('castAdd').addEventListener('click', () => {
+  ensureCast();
+  let k = st.cast.length + 1;
+  while (st.cast.some(c => c.name === '인물 ' + k)) k++;
+  st.cast.push({ name: '인물 ' + k, role: 'char', color: '' });
+  persist(); renderCast();
+  const inputs = $('castList').querySelectorAll('.cast-name');
+  const last = inputs[inputs.length - 1]; last.focus(); last.select();
+});
 
 /* 형태마다 쓰는 설정이 다르다 — 여기에 없는 항목은 그 형태에서 감춘다 */
 const MODE_UI = {
@@ -2248,7 +2343,7 @@ function syncControls() {
   /* 블로그에 그대로 이어 붙일 글이라 판형·쪽번호 없이 한 장으로 길게 */
   st.ratioKey = 'free'; st.ratio = 0; st.pageNum = false;
   const ui = MODE_UI[st.mode] || {};
-  $('myName').value = st.myName; $('charName').value = st.charName;
+  ensureCast(); syncCastNames();
   const isBook = st.mode === 'book';
   const ph = isBook ? (BOOK_PH[st.book] || BOOK_PH.page) : (PLACEHOLDERS[st.mode] || PLACEHOLDERS.novel);
   $('titleIn').placeholder = ph[0]; $('sourceIn').placeholder = ph[1];
@@ -2284,9 +2379,7 @@ function syncControls() {
   $('bgPick').textContent = bgImg ? '다시 선택' : '이미지 선택';
   $('grpDisplay').hidden = !(ui.names || ui.avatars || ui.chat || ui.narr);
   $('grpDisplayTitle').textContent = st.mode === 'post' ? '작성자' : '대사 표시';
-  $('avatarLabel').textContent = st.mode === 'post' ? '프로필 사진' : '화자';
   $('rowNames').hidden = !ui.names;
-  $('avNote').textContent = ui.avatars ? '동그라미를 누르면 사진을 골라요' : '말풍선·대화 줄글 모양에서 보여요';
   $('rowChatAlign').hidden = !ui.chat;
   $('rowBubble').hidden = !ui.chat;
   $('rowSub').hidden = !ui.sub;
@@ -2518,7 +2611,7 @@ function syncInfoSum() {
 /* 대화 쪽만 비운다 — 스타일은 그대로 */
 function clearTalk() {
   state.msgs = [];
-  st.myName = ''; st.charName = '';
+  st.myName = ''; st.charName = ''; st.cast = null;
   $('raw').value = '';
   avatars = {}; avSrc = null; avTarget = null; $('avFile').value = '';
   try { localStorage.removeItem('blank.talk'); } catch (e) {} /* 새 대화 → 블로그에도 새 글 */
@@ -2526,7 +2619,7 @@ function clearTalk() {
 }
 /* 스타일 쪽만 되돌린다 — 대화는 그대로 */
 function clearStyle() {
-  const keep = { myName: st.myName, charName: st.charName };
+  const keep = { myName: st.myName, charName: st.charName, cast: st.cast };
   st = Object.assign({}, ST_DEFAULT, keep);
   bgImg = null; $('bgFile').value = '';
   persist(); syncControls(); renderCardSoon();
@@ -2666,11 +2759,6 @@ $('narrSeg').addEventListener('click', e => {
 });
 $('titleIn').addEventListener('input', e => upd({ title: e.target.value }));
 $('sourceIn').addEventListener('input', e => upd({ source: e.target.value }));
-/* 이름이 바뀌면 목록의 칩과 카드의 화자 표기가 함께 따라가야 한다 */
-$('myName').addEventListener('input', e => { setPcName(e.target.value.trim()); });
-$('charName').addEventListener('input', e => {
-  st.charName = e.target.value.trim(); persist(); renderList(); renderCardSoon();
-});
 
 /* 문단 단위 분해: 대사/나레이션이 섞인 장문 블록을 문단으로 쪼개고 자동 분류 */
 function isDialoguePara(p) {
@@ -2718,6 +2806,7 @@ $('parseBtn').addEventListener('click', () => {
   if (!raw.trim()) return;
   state.msgs = state.msgs.concat(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
   $('raw').value = '';
+  autoAddCast();
   renderList(); renderCardSoon();
   setTab('prev');
 });
@@ -2727,9 +2816,11 @@ $('sampleBtn').addEventListener('click', () => {
   state.msgs = [];
   /* 예시는 지금 선언된 이름으로 만든다. 이름을 박아두면 이미 다른 이름을
      적어둔 경우 화자가 어긋나 PC 대사가 NPC로 분류된다 */
-  if (!st.myName) { st.myName = '나'; }
-  if (!st.charName) { st.charName = '세인'; }
-  persist(); syncControls();
+  ensureCast();
+  const pcC = st.cast.find(c => c.role === 'me'), npcC = st.cast.find(c => c.role === 'char');
+  if (pcC && !pcC.name) pcC.name = '나';
+  if (npcC && !npcC.name) npcC.name = '세인';
+  syncCastNames(); persist(); syncControls();
   const PC = st.myName, NPC = st.charName;
   $('raw').value = [
     '어둑한 서고에는 오래된 종이 냄새가 가라앉아 있었다. 창을 두드리는 빗소리만이 시간이 흐르고 있음을 알려 주었다.',
