@@ -496,9 +496,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
     <div class="row" style="margin:0">
       <button class="btn ghost" id="resetAll">전체 초기화</button>
-      <button class="btn ghost" id="copyBtn">이미지 복사</button>
-      <button class="btn ghost" id="saveBtn">이미지 저장</button>
-      <button class="btn primary" id="blogBtn" title="Shift + 클릭: 블로그 주소·열쇠 다시 설정">블로그로 올리기</button>
+      <button class="btn" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
+      <button class="btn primary" id="saveBtn">이미지 저장</button>
     </div>
   </div>
 
@@ -1688,6 +1687,7 @@ function drawCard(ctx, measure) {
 let renderTimer = null;
 let pageCanvases = [];
 async function renderCard() {
+  saveForBlog();
   const pagesBox = $('pages');
   const sel = state.msgs.filter(m => m.sel);
   const has = sel.length > 0;
@@ -1845,34 +1845,102 @@ $('saveBtn').addEventListener('click', async () => {
     return;
   }
 });
-/* ---------- 블로그로 보내기 ----------
-   개인 블로그(my-blog)의 /api/logs 로 지금 대화와 스타일을 보낸다. 블로그가 같은 모양을 글자로 다시 그린다.
-   처음 누르면 블로그 주소와 열쇠(블로그의 LOG_KEY)를 묻는다. 바꾸려면 Shift + 클릭 (또는 주소 끝에 #blog).
-   같은 대화를 고쳐서 다시 보내면 새 글이 아니라 그 글을 덮어쓴다 (대화를 비우면 새 글) */
-let blogLogId = '';
-function blogCfg() {
-  try { return JSON.parse(localStorage.getItem('blank.blog') || 'null'); } catch (e) { return null; }
+/* ---------- HTML 복사 ----------
+   티스토리·네이버 블로그 같은 편집기에 붙여넣으면 지금 카드 모양 그대로 글자로 들어가게 한다.
+   편집기들이 class 와 <style> 을 지우므로 모든 스타일을 태그마다 직접 적는다.
+   클립보드에는 붙여넣기용 text/html 과, HTML 편집 모드에 붙일 소스(text/plain)를 같이 넣는다 */
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const css = o => Object.entries(o).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}:${v}`).join(';');
+function runsHtml(text, qColor) {
+  return parseRuns(text, !!qColor).map(r => {
+    let h = escHtml(r.t);
+    if (r.b) h = `<b style="font-weight:700">${h}</b>`;
+    if (r.q) h = `<span style="color:${qColor}">${h}</span>`;
+    if (r.hl) h = `<mark style="${css({ background: st.hlc, color: textOn(hexRgb(st.hlc)), padding: '0 1px' })}">${h}</mark>`;
+    return h;
+  }).join('');
 }
-function blogSetup() {
-  const cur = blogCfg() || {};
-  const url = prompt('블로그 주소 (예: https://my-blog.pages.dev)\n비우면 블로그 연결을 해제해요.', cur.url || '');
-  if (url === null) return false;
-  if (!url.trim()) {
-    try { localStorage.removeItem('blank.blog'); } catch (e) {}
-    snack('블로그 연결을 해제했어요');
-    return false;
+function exportHtml() {
+  const sel = state.msgs.filter(m => m.sel);
+  if (!sel.length) return '';
+  const ink = hexRgb(st.ink), bg = hexRgb(st.bg), acc = hexRgb(st.acc);
+  const m = t => rgbCss(mix(ink, bg, t));
+  const lg = st.lineGap, pg = st.paraGap;
+  const title = st.title.trim(), sub = (st.sub || '').trim(), src = st.source.trim(), head = (st.head || '').trim();
+  const book = st.mode !== 'chat';
+  const B = BOOK_SPEC[st.book] ? st.book : 'page', K = BOOK_SPEC[B];
+  const wrap = css({
+    'max-width': st.width + 'px', margin: '0 auto', padding: (book ? K.pad : 2.4) + 'em',
+    background: st.bg, color: st.ink, 'font-family': `'${st.font}', ${FONT_FALLBACK[st.font] || 'sans-serif'}`,
+    'font-size': st.size + 'px', 'line-height': '1.5', 'word-break': 'keep-all', 'overflow-wrap': 'anywhere',
+    'box-sizing': 'border-box', 'text-align': 'left',
+  });
+  const out = [];
+  const source = () => {
+    if (!src) return;
+    const mark = st.srcMark === 'line' ? `<span style="display:inline-block;width:1.5em;height:1px;background:currentColor;vertical-align:middle;margin-right:.72em"></span>`
+      : st.srcMark === 'dot' ? `<span style="display:inline-block;width:.34em;height:.34em;border-radius:50%;background:currentColor;vertical-align:middle;margin-right:.72em"></span>` : '';
+    out.push(`<div style="${css({ 'margin-top': '2.6em', 'font-size': '.7em', 'font-weight': 500, 'letter-spacing': '.06em',
+      color: st.srcAccent ? st.acc : m(0.34), 'text-align': st.srcAlign || 'right' })}">${mark}${escHtml(src)}</div>`);
+  };
+
+  if (book) {
+    /* 소설형: 조판(본문·시집·아티클·헤드라인)마다 BLANK 와 같은 배율 */
+    if (B === 'page') {
+      if (head) out.push(`<div style="margin-top:1em;text-align:right;font-size:.74em;letter-spacing:.06em;color:${m(0.26)}">${escHtml(head)}</div>`);
+      if (title) out.push(`<h1 style="margin:2.4em 0 1.9em .45em;font-size:.98em;font-weight:700;line-height:1.5">${escHtml(title)}</h1>`);
+    } else if (B === 'poem') {
+      if (title) out.push(`<h1 style="margin:2.6em 0 4em;text-align:center;font-size:1.15em;font-weight:500;line-height:1.5">${escHtml(title)}</h1>`);
+    } else if (B === 'web') {
+      if (head) out.push(`<div style="margin-bottom:1.2em;font-size:.78em;font-weight:500;letter-spacing:.06em;color:${m(0.42)}">${escHtml(head)}</div>`);
+      if (title) out.push(`<h1 style="margin:0;font-size:2em;font-weight:400;line-height:1.32">${escHtml(title)}</h1>`,
+                          `<hr style="border:0;height:1px;background:${m(0.82)};margin:1.3em 0 1.4em">`);
+    } else if (B === 'head') {
+      if (title) out.push(`<h1 style="margin:0 0 1.25em;font-family:'Noto Sans KR','Pretendard Variable',sans-serif;font-size:2.4em;font-weight:900;line-height:1.26">${escHtml(title)}</h1>`);
+    }
+    sel.forEach((msg, i) => {
+      out.push(`<p style="${css({ margin: 0, 'margin-top': i && K.gap ? (K.gap * pg) + 'em' : '',
+        'text-indent': K.indent ? K.indent + 'em' : '', 'line-height': String(+(K.lh * lg).toFixed(3)),
+        'white-space': 'pre-wrap', 'text-align': st.justify ? 'justify' : '' })}">${runsHtml(msg.text)}</p>`);
+    });
+    source();
+  } else {
+    /* 채팅형: 알약 말풍선, 내 말은 오른쪽(좌우 대화일 때), 나레이션은 정렬 설정대로 */
+    if (title) {
+      out.push(`<h1 style="margin:0;font-size:1.5em;font-weight:700;line-height:1.5">${escHtml(title)}</h1>`);
+      if (sub) out.push(`<p style="margin:.9em 0 0;font-size:.92em;line-height:1.5;color:${m(0.52)}">${escHtml(sub)}</p>`);
+      out.push(`<div style="height:2.4em"></div>`);
+    }
+    const plain = st.bubble === 'plain';
+    const gap = (1.1 * pg) + 'em';
+    sel.forEach((msg, i) => {
+      const top = i ? gap : '0';
+      if (msg.role === 'narr') {
+        out.push(`<div style="${css({ margin: `${top} 0 0`, 'line-height': String(+(1.55 * lg).toFixed(3)), color: m(0.14),
+          'text-align': st.narrAlign || 'left', 'white-space': 'pre-wrap' })}">${runsHtml(msg.text)}</div>`);
+        return;
+      }
+      const me = st.chatAlign !== 'left' && msg.role === 'me';
+      const name = displayName(msg);
+      const av = avatars[name] && avatars[name].img ? smallAvatar(avatars[name].img) : '';
+      const bub = css({
+        display: 'inline-block', 'text-align': 'left', 'white-space': 'pre-wrap', 'line-height': String(+(1.55 * lg).toFixed(3)),
+        padding: plain ? '0' : '.85em 1.6em',
+        background: plain ? '' : (me ? st.acc : rgbCss(mix(bg, ink, 0.1))),
+        color: plain ? st.ink : (me ? textOn(acc) : st.ink),
+        'border-radius': plain ? '' : (me ? '999px 0 999px 999px' : '0 999px 999px 999px'),
+      });
+      const who = st.showNames && name ? `<div style="font-size:.78em;font-weight:700;line-height:1.2;color:${m(0.2)};margin-bottom:.5em">${escHtml(name)}</div>` : '';
+      const img = av ? `<img src="${av}" alt="" width="38" height="38" style="width:2.35em;height:2.35em;border-radius:30%;object-fit:cover;vertical-align:top;margin-${me ? 'left' : 'right'}:.62em">` : '';
+      /* 편집기마다 flex 지원이 달라 표 대신 inline-block 으로 줄을 짠다 */
+      const stack = `<div style="display:inline-block;vertical-align:top;max-width:85%;text-align:${me ? 'right' : 'left'}">${who}<div style="${bub}">${runsHtml(stripQuotes(msg.text))}</div></div>`;
+      out.push(`<div style="margin:${top} 0 0;text-align:${me ? 'right' : 'left'}">${me ? stack + img : img + stack}</div>`);
+    });
+    source();
   }
-  const key = prompt('블로그 열쇠 (Cloudflare 에 적어둔 LOG_KEY)', cur.key || '');
-  if (!key) return false;
-  try { localStorage.setItem('blank.blog', JSON.stringify({ url: url.trim().replace(/\/+$/, ''), key: key.trim() })); } catch (e) {}
-  snack('블로그를 연결했어요');
-  return true;
+  return `<div style="${wrap}">\n${out.join('\n')}\n</div>`;
 }
-if (location.hash === '#blog') {
-  history.replaceState(null, '', location.pathname + location.search);
-  setTimeout(blogSetup, 300);
-}
-/* 프로필 사진은 512px PNG 라 무겁다. 보낼 때만 작게 줄인다 */
+/* 프로필 사진은 512px PNG 라 무겁다. 내보낼 때만 작게 줄인다 */
 function smallAvatar(img) {
   const c = document.createElement('canvas');
   c.width = c.height = 160;
@@ -1880,7 +1948,24 @@ function smallAvatar(img) {
   const webp = c.toDataURL('image/webp', 0.86);
   return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/jpeg', 0.88);
 }
-function blogPayload() {
+$('htmlBtn').addEventListener('click', async () => {
+  const html = exportHtml();
+  if (!html) { snack('복사할 문단이 없어요'); return; }
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([html], { type: 'text/plain' }),
+    })]);
+  } catch (e) {
+    try { await navigator.clipboard.writeText(html); } catch (e2) { snack('클립보드에 넣지 못했어요'); return; }
+  }
+  snack('HTML을 복사했어요. 블로그 글쓰기 화면에 붙여넣으세요 (HTML 모드에 붙이면 코드로 들어가요)');
+});
+
+/* ---------- 블로그로 올리기 (내 블로그 전용 페이지 me.html 에서) ----------
+   지금 고른 대화와 스타일을 이 브라우저에 적어 두면 me.html 이 읽어서 보낸다.
+   talk 은 대화 한 벌의 번호 — 대화를 비우면 새 번호라 블로그에도 새 글로 올라간다 */
+function exportPayload() {
   const sel = state.msgs.filter(m => m.sel);
   const msgs = sel.map(m => ({ role: m.role, name: displayName(m), text: m.text }));
   const used = new Set(msgs.map(m => m.name));
@@ -1892,67 +1977,16 @@ function blogPayload() {
   return { title: st.title, sub: st.sub, head: st.head, source: st.source,
            mode: st.mode, book: st.book, style, msgs, avatars: av };
 }
-let blogBusy = false;
-$('blogBtn').addEventListener('click', async (e) => {
-  if (e.shiftKey || !blogCfg()) { if (!blogSetup()) return; }
-  if (blogBusy) return;
-  const cfg = blogCfg();
-  const body = blogPayload();
-  if (!body.msgs.length) { snack('보낼 문단이 없어요'); return; }
-  blogBusy = true;
-  const btn = $('blogBtn'), label = btn.textContent;
-  btn.textContent = '보내는 중…';
-  const send = (method, path) => fetch(cfg.url + path, {
-    method,
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key },
-    body: JSON.stringify(body),
-  });
-  try {
-    let r = blogLogId ? await send('PUT', '/api/logs/' + blogLogId) : await send('POST', '/api/logs');
-    /* 블로그에서 지운 글이면 새로 올린다 */
-    if (r.status === 404 && blogLogId) { blogLogId = ''; r = await send('POST', '/api/logs'); }
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      snack(r.status === 401 ? '열쇠가 맞지 않아요. 버튼을 Shift + 클릭해 다시 적어 주세요' : (d.error || '보내지 못했어요 (' + r.status + ')'));
-      return;
-    }
-    const updated = !!blogLogId;
-    blogLogId = d.id;
-    snack(updated ? '블로그 글을 고친 내용으로 바꿨어요' : '블로그에 올렸어요. 고친 뒤 다시 누르면 같은 글이 바뀌어요');
-  } catch (err) {
-    snack('블로그에 닿지 못했어요. 주소를 확인해 주세요 (Shift + 클릭)');
-  } finally {
-    blogBusy = false;
-    btn.textContent = label;
-  }
-});
-
-/* 복사: 여러 페이지면 세로로 이어 붙인 한 장으로 복사 */
-function combinedCanvas() {
-  if (pageCanvases.length === 1) return pageCanvases[0];
-  const gap = 48;
-  const c = document.createElement('canvas');
-  c.width = Math.max(...pageCanvases.map(p => p.width));
-  c.height = pageCanvases.reduce((s2, p) => s2 + p.height, 0) + gap * (pageCanvases.length - 1);
-  const ctx = c.getContext('2d');
-  let y = 0;
-  for (const p of pageCanvases) { ctx.drawImage(p, 0, y); y += p.height + gap; }
-  return c;
+function talkId() {
+  let id = '';
+  try { id = localStorage.getItem('blank.talk') || ''; } catch (e) {}
+  if (!id) { id = Math.random().toString(36).slice(2, 10); try { localStorage.setItem('blank.talk', id); } catch (e) {} }
+  return id;
 }
-$('copyBtn').addEventListener('click', async () => {
-  await renderCard();
-  if (!pageCanvases.length || $('pages').hidden) return;
-  const canvas = combinedCanvas();
-  try {
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    $('copyBtn').textContent = '복사됨!';
-    setTimeout(() => $('copyBtn').textContent = '이미지 복사', 1400);
-  } catch (e) {
-    $('modalImg').src = canvas.toDataURL('image/png');
-    $('modal').classList.add('open');
-  }
-});
+function saveForBlog() {
+  try { localStorage.setItem('blank.last', JSON.stringify({ talk: talkId(), at: Date.now(), log: exportPayload() })); } catch (e) {}
+}
+
 $('modalClose').addEventListener('click', () => $('modal').classList.remove('open'));
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.remove('open'); });
 
@@ -2321,7 +2355,7 @@ function clearTalk() {
   st.myName = ''; st.charName = '';
   $('raw').value = '';
   avatars = {}; avSrc = null; avTarget = null; $('avFile').value = '';
-  blogLogId = '';
+  try { localStorage.removeItem('blank.talk'); } catch (e) {} /* 새 대화 → 블로그에도 새 글 */
   persist(); syncControls(); renderList(); renderCardSoon();
 }
 /* 스타일 쪽만 되돌린다 — 대화는 그대로 */

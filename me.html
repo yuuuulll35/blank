@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>BLANK · 블로그로 올리기</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNy41JyBmaWxsPScjRkFGOUY2Jy8+PHJlY3QgeD0nOCcgeT0nMTAnIHdpZHRoPScxNicgaGVpZ2h0PScyLjQnIHJ4PScxLjInIGZpbGw9JyMyQjJBMzMnIG9wYWNpdHk9Jy4xOCcvPjxyZWN0IHg9JzgnIHk9JzE1LjQnIHdpZHRoPScxMC41JyBoZWlnaHQ9JzIuNCcgcng9JzEuMicgZmlsbD0nIzJCMkEzMycgb3BhY2l0eT0nLjE4Jy8+PHJlY3QgeD0nOCcgeT0nMjEuNicgd2lkdGg9JzE2JyBoZWlnaHQ9JzMuMicgcng9JzEuNicgZmlsbD0nI0MyNEU2MycvPjwvc3ZnPg==">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* 내 블로그(my-blog)로 보내는 개인용 페이지. BLANK(index.html)에서 고른 대화를 이 브라우저 저장소(blank.last)에서 읽는다 */
+:root{
+  --bg:#FAFAF6; --panel:#FFFFFF; --ink:#1B1E23; --muted:#6E7078; --line:#E3E3D9; --accent:#1B1E23; --warn:#B3423A;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#17181B; --panel:#1F2125; --ink:#ECEDEF; --muted:#9AA0A6; --line:#33363C; --accent:#ECEDEF; --warn:#E07A70; }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.6;
+  font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+main{max-width:560px; margin:0 auto; padding:28px 16px 48px}
+header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:18px}
+h1{margin:0; font-size:18px; font-weight:800}
+a{color:var(--muted)}
+a:hover{color:var(--ink)}
+.box{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:14px}
+.box h2{margin:0 0 10px; font-size:13px; font-weight:800; color:var(--muted)}
+.meta{font-size:12.5px; color:var(--muted)}
+.title{font-size:16px; font-weight:700; margin:2px 0 6px}
+.preview{margin:10px 0 0; padding:10px 12px; border-left:2px solid var(--line); color:var(--muted); font-size:13px; white-space:pre-wrap; max-height:9.6em; overflow:hidden}
+label{display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:650; margin-bottom:10px}
+input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel)}
+.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.btn{
+  font:inherit; border:1px solid var(--line); background:var(--panel); border-radius:8px; cursor:pointer;
+  padding:8px 14px; font-weight:650; color:var(--ink); font-size:13px;
+}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:700}
+.btn:disabled{opacity:.4; cursor:default}
+#status{font-size:13px; margin-top:10px; min-height:1.6em}
+#status.err{color:var(--warn)}
+.empty{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>블로그로 올리기</h1>
+    <a href="./">BLANK로 돌아가기</a>
+  </header>
+
+  <section class="box">
+    <h2>보낼 글 (BLANK에서 지금 고른 문단)</h2>
+    <div id="current"></div>
+  </section>
+
+  <section class="box">
+    <div class="row">
+      <button class="btn primary" id="send" disabled>블로그로 올리기</button>
+      <a id="openLog" href="#" target="_blank" rel="noopener" hidden>올린 글 보기</a>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <section class="box">
+    <h2>블로그 연결</h2>
+    <label>블로그 주소<input id="url" placeholder="https://my-blog.pages.dev" autocomplete="off"></label>
+    <label>열쇠 (Cloudflare에 적어 둔 LOG_KEY)<input id="key" type="password" autocomplete="off"></label>
+    <div class="row">
+      <button class="btn" id="saveCfg">저장</button>
+      <button class="btn" id="clearCfg">연결 해제</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch (e) { return d; } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const MODE = { book: '소설형', chat: '채팅형' };
+
+/* 대화 한 벌(talk)마다 올린 글 번호를 기억해, 고친 뒤 다시 누르면 같은 글을 덮어쓴다 */
+const ids = () => read('blank.blog.ids', {});
+function status(msg, err) { $('status').textContent = msg; $('status').classList.toggle('err', !!err); }
+
+function show() {
+  const last = read('blank.last', null);
+  const box = $('current');
+  box.replaceChildren();
+  const log = last && last.log;
+  if (!log || !log.msgs || !log.msgs.length) {
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = 'BLANK에서 대화를 넣고 문단을 고르면 여기에 나타나요. (같은 브라우저에서 열어야 해요)';
+    box.append(p);
+    $('send').disabled = true;
+    $('openLog').hidden = true;
+    return;
+  }
+  const t = document.createElement('div'); t.className = 'title'; t.textContent = log.title || '(제목 없음)';
+  const m = document.createElement('div'); m.className = 'meta';
+  m.textContent = `${MODE[log.mode] || log.mode} · ${log.msgs.length}문단 · ${new Date(last.at).toLocaleString('ko-KR')} 기준`;
+  const pv = document.createElement('div'); pv.className = 'preview';
+  pv.textContent = log.msgs.slice(0, 4).map(x => x.text.replace(/==|\*\*/g, '')).join('\n');
+  box.append(t, m, pv);
+  const id = ids()[last.talk];
+  $('send').disabled = false;
+  $('send').textContent = id ? '같은 글 고치기' : '블로그로 올리기';
+  const cfg = read('blank.blog', null);
+  $('openLog').hidden = !(id && cfg);
+  if (id && cfg) $('openLog').href = `${cfg.url}/blog/log/?id=${encodeURIComponent(id)}`;
+}
+
+function loadCfg() {
+  const cfg = read('blank.blog', {}) || {};
+  $('url').value = cfg.url || '';
+  $('key').value = cfg.key || '';
+}
+$('saveCfg').addEventListener('click', () => {
+  const url = $('url').value.trim().replace(/\/+$/, ''), key = $('key').value.trim();
+  if (!url || !key) { status('주소와 열쇠를 둘 다 적어 주세요', true); return; }
+  write('blank.blog', { url, key });
+  status('블로그 연결을 저장했어요');
+  show();
+});
+$('clearCfg').addEventListener('click', () => {
+  try { localStorage.removeItem('blank.blog'); } catch (e) {}
+  loadCfg(); status('블로그 연결을 해제했어요'); show();
+});
+
+let busy = false;
+$('send').addEventListener('click', async () => {
+  const cfg = read('blank.blog', null);
+  if (!cfg) { status('아래 "블로그 연결"에 주소와 열쇠를 먼저 저장해 주세요', true); $('url').focus(); return; }
+  const last = read('blank.last', null);
+  if (!last || !last.log || !last.log.msgs.length || busy) return;
+  busy = true;
+  const btn = $('send'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = '보내는 중…';
+  const map = ids();
+  let id = map[last.talk] || '';
+  const send = (method, path) => fetch(cfg.url + path, {
+    method,
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key },
+    body: JSON.stringify(last.log),
+  });
+  try {
+    let r = id ? await send('PUT', '/api/logs/' + id) : await send('POST', '/api/logs');
+    /* 블로그에서 지운 글이면 새로 올린다 */
+    if (r.status === 404 && id) { id = ''; r = await send('POST', '/api/logs'); }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      status(r.status === 401 ? '열쇠가 맞지 않아요. 아래 "블로그 연결"에서 다시 적어 주세요' : (d.error || `보내지 못했어요 (${r.status})`), true);
+      return;
+    }
+    const updated = !!id;
+    map[last.talk] = d.id; write('blank.blog.ids', map);
+    status(updated ? '블로그 글을 고친 내용으로 바꿨어요' : '블로그에 올렸어요. BLANK에서 고친 뒤 다시 누르면 같은 글이 바뀌어요');
+  } catch (e) {
+    status('블로그에 닿지 못했어요. 주소를 확인해 주세요', true);
+  } finally {
+    busy = false; btn.textContent = label; show();
+  }
+});
+
+/* BLANK를 다른 탭에서 고치면 바로 반영 */
+window.addEventListener('storage', e => { if (e.key === 'blank.last' || e.key === 'blank.blog') show(); });
+loadCfg(); show();
+</script>
+</body>
+</html>
