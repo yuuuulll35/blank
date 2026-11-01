@@ -617,6 +617,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
     <div id="renderBusy" role="status" hidden><i></i>미리보기 그리는 중…</div>
     <div class="row" style="margin:0">
+      <button class="btn" id="draftBtn" title="지금 대화와 입력칸 내용을 저장해요. 새로고침하면 불러올지 물어봐요">임시저장</button>
       <button class="btn" id="saveBtn">이미지 저장</button>
       <button class="btn primary" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
       <button class="btn icon" id="sideToggle" title="사이드바 접기" aria-label="사이드바 접기" aria-expanded="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.8" y="2.6" width="12.4" height="10.8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.6v10.8" stroke="currentColor" stroke-width="1.5"/></svg></button>
@@ -2486,7 +2487,6 @@ function talkId() {
   return id;
 }
 function saveForBlog() {
-  saveDraftSoon();
   try { localStorage.setItem('blank.last', JSON.stringify({ talk: talkId(), at: Date.now(), log: exportPayload() })); }
   catch (e) { snack('글이 너무 길어 블로그용 임시 저장을 못 했어요'); }
 }
@@ -2660,27 +2660,28 @@ async function addPic(file) {
   try { (await avDb()).transaction('pics', 'readwrite').objectStore('pics').put(blob, id); } catch (e) {}
   return id;
 }
-/* 임시저장: 대화·입력칸·배경을 자동으로 남겼다가 다시 열면 되살린다. 스타일과 등장인물은 따로 저장된다 */
-let draftReady = false, draftTimer = null;
-function saveDraftSoon() {
-  if (!draftReady) return;
-  clearTimeout(draftTimer);
-  draftTimer = setTimeout(saveDraft, 800);
-}
+/* 임시저장: [임시저장]을 누를 때만 대화·입력칸·배경을 남긴다. 스타일과 등장인물은 따로 저장된다 */
+const askDb = q => new Promise((res, rej) => { q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
 async function saveDraft() {
-  if (!draftReady) return;
-  clearTimeout(draftTimer);
+  if (!state.msgs.length && !$('raw').value.trim()) { snack('저장할 내용이 없어요'); return; }
   try {
     const draft = { msgs: state.msgs, raw: $('raw').value, applied: appliedTexts, bgPic };
-    (await avDb()).transaction('draft', 'readwrite').objectStore('draft').put(draft, 'current');
-  } catch (e) {}
+    await askDb((await avDb()).transaction('draft', 'readwrite').objectStore('draft').put(draft, 'current'));
+    snack('임시저장했어요');
+  } catch (e) { snack('임시저장하지 못했어요'); }
 }
+/* 새로고침하면 불러올지 묻는다. 아니라고 하면 임시저장을 지운다 */
 async function loadDraft() {
   try {
     const db = await avDb();
-    const ask = q => new Promise((res, rej) => { q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    const ask = askDb;
     const d = await ask(db.transaction('draft').objectStore('draft').get('current'));
-    if (d && (d.msgs.length || d.raw) && !state.msgs.length) {
+    if (!d) return;
+    if (!confirm('임시저장된 내용이 있습니다. 불러올까요?')) {
+      await ask(db.transaction('draft', 'readwrite').objectStore('draft').delete('current'));
+      return;
+    }
+    {
       const ids = [...new Set([...d.msgs.map(m => m.pic), d.bgPic].filter(Boolean))];
       await Promise.all(ids.map(async id => {
         const blob = await ask(db.transaction('pics').objectStore('pics').get(id));
@@ -2691,10 +2692,8 @@ async function loadDraft() {
       $('raw').value = d.raw; appliedTexts = d.applied || [];
       if (d.bgPic && pics[d.bgPic]) { bgPic = d.bgPic; bgImg = pics[d.bgPic].img; }
       syncControls(); renderList(); renderCardSoon();
-      if (state.msgs.length) snack('지난 작업을 불러왔어요');
     }
   } catch (e) {}
-  draftReady = true;
 }
 /* 임시저장과 지난번 글에 쓰인 것만 남기고 저장소를 비운다 */
 async function prunePics() {
@@ -3626,8 +3625,7 @@ $('infoBox').addEventListener('toggle', () => {
   if (tourIdx >= 0) return;
   try { localStorage.setItem('blank.infoClosed', $('infoBox').open ? '' : '1'); } catch (e) {}
 });
-$('raw').addEventListener('input', saveDraftSoon);
-addEventListener('pagehide', saveDraft);
+$('draftBtn').addEventListener('click', saveDraft);
 
 /* ---------- 사용법 안내 ---------- */
 const TOUR = [
@@ -3640,7 +3638,7 @@ const TOUR = [
   { el: () => $('castLib'), prep() { setTab('edit'); $('castBox').open = true; $('castLib').open = true; },
     text: '자주 쓰는 인물은 별을 눌러 보관함에 저장해요. 이름·사진·말풍선 색이 함께 남고, 보관함에서 누르면 등장인물에 바로 들어가요.' },
   { el: () => $('list'), prep() { setTab('edit'); $('castLib').open = false; openId = null; renderList(); },
-    text: '체크한 문단만 카드에 들어가요. 색 칩을 눌러 화자를 고르고, 위의 [화자 일괄 변경]으로 체크한 문단을 한 번에 바꿔요. 작업은 자동으로 임시저장돼요.' },
+    text: '체크한 문단만 카드에 들어가요. 색 칩을 눌러 화자를 고르고, 위의 [화자 일괄 변경]으로 체크한 문단을 한 번에 바꿔요. 작업을 남기려면 위의 [임시저장]을 눌러요.' },
   { el: () => document.querySelectorAll('#list .ins')[1], prep() { setTab('edit'); closeIns(); const g = document.querySelectorAll('#list .ins')[1]; if (g) g.classList.add('open'); },
     text: '문단 사이의 ＋를 누르면 그 자리에 새 문단을 넣고, 위아래 문단을 합칠 수 있어요. 잘못 지우거나 합쳤다면 [되돌리기]로 살려요.' },
   { el: () => document.querySelector('.msg-tools'), prep() { setTab('edit'); const m = state.msgs.find(x => x.role !== 'narr') || state.msgs[0]; if (m) { openId = m.id; renderList(); } },
