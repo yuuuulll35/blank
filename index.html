@@ -104,8 +104,17 @@ input,textarea,select{font:inherit; color:var(--ink)}
 
 .preview-bar{
   display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
-  padding:10px 16px; border-bottom:1px solid var(--line); background:var(--bg);
+  position:relative; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--bg);
 }
+#renderBusy{
+  position:absolute; top:calc(100% + 12px); left:50%; transform:translateX(-50%); z-index:6;
+  display:flex; align-items:center; gap:8px; padding:8px 14px; white-space:nowrap;
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  box-shadow:0 4px 14px rgba(0,0,0,.14); font-size:12.5px; font-weight:600; color:var(--ink);
+}
+#renderBusy[hidden]{display:none}
+#renderBusy i{width:13px; height:13px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--accent); animation:renderSpin .8s linear infinite}
+@keyframes renderSpin{to{transform:rotate(360deg)}}
 .zoom{display:flex; align-items:center; gap:4px}
 .zoom .btn{padding:5px 11px; font-weight:700}
 #zoomVal{min-width:66px; text-align:center; font-size:12.5px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums}
@@ -551,6 +560,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn ghost" id="zoomFit">화면에 맞춤</button>
       <span id="pageInd" hidden></span>
     </div>
+    <div id="renderBusy" role="status" hidden><i></i>미리보기 그리는 중…</div>
     <div class="row" style="margin:0">
       <button class="btn" id="saveBtn">이미지 저장</button>
       <button class="btn primary" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
@@ -1859,8 +1869,30 @@ function drawCard(ctx, measure) {
 
 let renderTimer = null;
 let pageCanvases = [];
-async function renderCard() {
+let renderJob = 0, busyTimer = null, breatheAt = 0;
+/* 긴 글은 그리는 동안 화면이 멈추지 않게 틈틈이 브라우저에 차례를 넘긴다 */
+async function breathe() {
+  if (performance.now() - breatheAt < 40) return;
+  await new Promise(r => {
+    const t = setTimeout(r, 60);
+    requestAnimationFrame(() => { clearTimeout(t); setTimeout(r); });
+  });
+  breatheAt = performance.now();
+}
+/* 편집 탭에서는 보이지 않으니 그리지 않는다. 저장할 때만 force.
+   새 요청이 오면 진행 중인 작업은 false 를 돌려주고 멈춘다 */
+async function renderCard(force) {
   saveForBlog();
+  if (!force && $('prevPane').hidden) return;
+  const job = ++renderJob;
+  clearTimeout(busyTimer);
+  busyTimer = setTimeout(() => { $('renderBusy').hidden = false; }, 200);
+  try { return await paintCard(job); }
+  finally {
+    if (job === renderJob) { clearTimeout(busyTimer); $('renderBusy').hidden = true; }
+  }
+}
+async function paintCard(job) {
   const pagesBox = $('pages');
   const sel = state.msgs.filter(m => m.sel);
   const has = sel.length > 0;
@@ -1880,6 +1912,8 @@ async function renderCard() {
     await Promise.all([400, 500, 700].map(w =>
       document.fonts.load(`${w} ${st.size}px "${st.font}"`, sampleText)));
   } catch (e) {}
+  await breathe();
+  if (job !== renderJob) return false;
 
   let S = 2;
   const mCanvas = document.createElement('canvas');
@@ -1898,24 +1932,31 @@ async function renderCard() {
   if (sel.length <= 1 || fullH <= pageH) {
     pages = [sel];
   } else {
-    pages = []; let cur = [];
-    for (const m of sel) {
-      cur.push(m);
-      PAGE_MSGS = cur; PAGE_CTX = { first: pages.length === 0, last: false, num: 0, total: 0 };
-      resetM();
-      if (Math.ceil(drawCard(mctx, true)) > pageH && cur.length > 1) {
-        cur.pop(); pages.push(cur); cur = [m];
+    /* 한 조각에 들어갈 문단 수를 이분 탐색으로 찾는다 */
+    pages = [];
+    for (let start = 0; start < sel.length;) {
+      let lo = start + 1, hi = sel.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        await breathe();
+        if (job !== renderJob) return false;
+        PAGE_MSGS = sel.slice(start, mid); PAGE_CTX = { first: start === 0, last: false, num: 0, total: 0 };
+        resetM();
+        if (Math.ceil(drawCard(mctx, true)) > pageH) hi = mid - 1; else lo = mid;
       }
+      pages.push(sel.slice(start, lo));
+      start = lo;
     }
-    if (cur.length) pages.push(cur);
   }
 
   while (pagesBox.children.length > pages.length) pagesBox.lastChild.remove();
   while (pagesBox.children.length < pages.length) pagesBox.append(document.createElement('canvas'));
   pageCanvases = [...pagesBox.children];
 
-  pages.forEach((subset, i) => {
-    PAGE_MSGS = subset;
+  for (let i = 0; i < pages.length; i++) {
+    await breathe();
+    if (job !== renderJob) return false;
+    PAGE_MSGS = pages[i];
     PAGE_CTX = { first: i === 0, last: i === pages.length - 1, num: i + 1, total: pages.length };
     resetM();
     let H = Math.ceil(drawCard(mctx, true));
@@ -1925,11 +1966,12 @@ async function renderCard() {
     const ctx = canvas.getContext('2d');
     ctx.setTransform(S, 0, 0, S, 0, 0);
     drawCard(ctx, false);
-  });
+  }
   PAGE_MSGS = null; PAGE_CTX = { first: true, last: true, num: 1, total: 1 };
   applyZoom();
   renderThumbs();
   showPage(Math.min(curPage, pageCanvases.length - 1));
+  return true;
 }
 
 /* ---------- 페이지 표시 (잘린 조각이 있으면 전부 위아래로 이어 보인다) ---------- */
@@ -1990,7 +2032,7 @@ let dl = null;
 })();
 
 $('saveBtn').addEventListener('click', async () => {
-  await renderCard();
+  if (await renderCard(true) === false) return;
   if (!pageCanvases.length || $('pages').hidden) return;
   const base = stamp();
   for (let i = 0; i < pageCanvases.length; i++) {
@@ -2176,7 +2218,7 @@ function setTab(t) {
   $('tabEdit').classList.toggle('on', edit);
   $('tabPrev').classList.toggle('on', !edit);
   $('zoomBox').style.display = edit ? 'none' : 'flex';
-  if (!edit) renderCard();
+  if (!edit) { clearTimeout(renderTimer); renderCard(); }
 }
 $('tabEdit').addEventListener('click', () => setTab('edit'));
 $('tabPrev').addEventListener('click', () => setTab('preview'));
