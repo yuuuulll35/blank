@@ -146,6 +146,30 @@ function readPic(id) {
     };
   });
 }
+/* 프로필 사진은 말풍선마다 data URL 로 들어 있어 긴 글이면 수 MB 가 된다.
+   같은 사진은 한 번만 블로그에 올리고 글에는 주소만 남긴다 */
+async function dataImagesToFiles(cfg, html) {
+  const urls = [...new Set(html.match(/data:image\/(?:webp|png|jpeg|gif);base64,[A-Za-z0-9+/=]+/g) || [])];
+  const sent = read('blank.blog.pics', {});
+  for (let i = 0; i < urls.length; i++) {
+    const blob = await (await fetch(urls[i])).blob();
+    const ext = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif' }[blob.type];
+    const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const name = hex + '.' + ext, mark = cfg.url + '/' + name;
+    if (!sent[mark]) {
+      status(`프로필 사진 올리는 중… (${i + 1}/${urls.length})`);
+      const r = await fetch(`${cfg.url}/api/logs/img/${name}`, {
+        method: 'PUT', headers: { 'content-type': blob.type, authorization: 'Bearer ' + cfg.key }, body: blob,
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 401 ? '열쇠가 맞지 않아요. 아래 "블로그 연결"에서 다시 적어 주세요' : (d.error || `프로필 사진을 올리지 못했어요 (${r.status})`));
+      sent[mark] = d.src;
+      write('blank.blog.pics', sent);
+    }
+    html = html.split(urls[i]).join(sent[mark]);
+  }
+  return html;
+}
 async function withImages(cfg, log) {
   const ids = [...new Set([...log.msgs.map(m => m.pic && m.pic.id), log.style && log.style.bgPic].filter(Boolean))];
   const sent = read('blank.blog.pics', {});
@@ -170,6 +194,13 @@ async function withImages(cfg, log) {
   }
   const { bgPic, ...style } = log.style || {};
   if (bgPic) style.bgImage = srcs[bgPic];
+  /* BLANK 의 'HTML 복사'와 같은 완성본이 있으면 그것을 보낸다 — 블로그가 다시 그리지 않아 미리보기와 똑같이 보인다 */
+  if (log.html) {
+    let html = await dataImagesToFiles(cfg, log.html);
+    html = html.replace(/blank-pic:([0-9a-f]{64}\.(?:webp|jpg|png|gif))/g, (all, id) => srcs[id] || all);
+    if (bgPic && srcs[bgPic]) html = html.replace(/^<div style="/, `<div style="background-image:url(${srcs[bgPic]});background-size:cover;background-position:center;`);
+    return { format: 'html', title: log.title || '', mode: log.mode === 'chat' ? 'chat' : 'book', html };
+  }
   const msgs = log.msgs.map(({ pic, ...m }) => (pic ? { ...m, image: { src: srcs[pic.id], w: pic.w, h: pic.h } } : m));
   return { ...log, style, msgs };
 }
