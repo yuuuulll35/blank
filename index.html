@@ -3636,14 +3636,17 @@ async function applyRaw() {
   snack(parsed.length + '문단을 넣었어요' + (newCast.length ? ' · 새 인물 ' + newCast.join(', ') : ''));
 }
 $('parseBtn').addEventListener('click', applyRaw);
-/* 예시 보기: 전체 초기화 후 예시 대화를 넣어 미리보기로 보여준다 */
-$('sampleBtn').addEventListener('click', () => {
-  const skip = ['cast', 'myName', 'charName', 'ratioKey', 'ratio', 'pageNum'];
-  const dirty = state.msgs.length
-    || Object.keys(ST_DEFAULT).some(k => !skip.includes(k) && JSON.stringify(st[k]) !== JSON.stringify(ST_DEFAULT[k]));
-  if (dirty && !confirm('예시를 보려면 대화·스타일을 처음 상태로 되돌려요. 등장인물은 그대로예요. 계속할까요?')) return;
-  st = Object.assign({}, ST_DEFAULT, { cast: st.cast, myName: st.myName, charName: st.charName });
-  bgImg = bgPic = null; $('bgFile').value = '';
+/* 예시 보기: 전체 초기화 후 예시 대화를 넣어 미리보기로 보여준다.
+   사용법 안내(keepStyle)에서는 대화가 비어 있을 때만 부르므로, 묻지 않고 스타일도 그대로 둔 채 예시만 넣는다 */
+function loadSample(keepStyle) {
+  if (!keepStyle) {
+    const skip = ['cast', 'myName', 'charName', 'ratioKey', 'ratio', 'pageNum'];
+    const dirty = state.msgs.length
+      || Object.keys(ST_DEFAULT).some(k => !skip.includes(k) && JSON.stringify(st[k]) !== JSON.stringify(ST_DEFAULT[k]));
+    if (dirty && !confirm('예시를 보려면 대화·스타일을 처음 상태로 되돌려요. 등장인물은 그대로예요. 계속할까요?')) return;
+    st = Object.assign({}, ST_DEFAULT, { cast: st.cast, myName: st.myName, charName: st.charName });
+    bgImg = bgPic = null; $('bgFile').value = '';
+  }
   clearTalk();
   ensureCast();
   const pcC = st.cast.find(c => c.role === 'me'), npcC = st.cast.find(c => c.role === 'char');
@@ -3665,7 +3668,8 @@ $('sampleBtn').addEventListener('click', () => {
     '그가 사다리에서 내려오는 소리가, ==빗소리 사이에서 유난히 크게== 들렸다.',
   ].join('\n');
   $('parseBtn').click();
-});
+}
+$('sampleBtn').addEventListener('click', () => loadSample(false));
 addEventListener('click', e => { if (!e.target.closest('.ins, #tour')) closeIns(); });
 /* 문단 밖 빈 곳을 누르면 접는다. 글자를 드래그하다 밖에서 놓아도 닫히지 않게 누르는 순간만 본다 */
 $('editPane').addEventListener('mousedown', e => {
@@ -3829,7 +3833,7 @@ function tourShow(i) {
 }
 function startTour() {
   setSideOff(false);
-  if (!state.msgs.length) $('sampleBtn').click();
+  if (!state.msgs.length) loadSample(true);
   tourShow(0);
 }
 $('tourNext').addEventListener('click', () => tourShow(tourIdx + 1));
