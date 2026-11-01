@@ -103,7 +103,7 @@ function show() {
   const m = document.createElement('div'); m.className = 'meta';
   m.textContent = `${MODE[log.mode] || log.mode} · ${log.msgs.length}문단 · ${new Date(last.at).toLocaleString('ko-KR')} 기준`;
   const pv = document.createElement('div'); pv.className = 'preview';
-  pv.textContent = log.msgs.slice(0, 4).map(x => x.text.replace(/==|\*\*|__/g, '')).join('\n');
+  pv.textContent = log.msgs.slice(0, 4).map(x => x.pic ? '[이미지]' : x.text.replace(/==|\*\*|__/g, '')).join('\n');
   box.append(t, m, pv);
   const id = ids()[last.talk];
   $('send').disabled = false;
@@ -130,6 +130,48 @@ $('clearCfg').addEventListener('click', () => {
   loadCfg(); status('블로그 연결을 해제했어요'); show();
 });
 
+/* BLANK가 IndexedDB에 둔 이미지를 꺼내 블로그에 먼저 올리고, 글에는 주소만 넣는다 */
+function readPic(id) {
+  return new Promise((res, rej) => {
+    const q = indexedDB.open('blank');
+    q.onerror = () => rej(q.error);
+    q.onsuccess = () => {
+      const db = q.result;
+      if (!db.objectStoreNames.contains('pics')) { db.close(); res(null); return; }
+      const g = db.transaction('pics').objectStore('pics').get(id);
+      g.onsuccess = () => { db.close(); res(g.result || null); };
+      g.onerror = () => { db.close(); rej(g.error); };
+    };
+  });
+}
+async function withImages(cfg, log) {
+  const ids = [...new Set([...log.msgs.map(m => m.pic && m.pic.id), log.style && log.style.bgPic].filter(Boolean))];
+  const sent = read('blank.blog.pics', {});
+  const srcs = {};
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i], mark = cfg.url + '/' + id;
+    if (!sent[mark]) {
+      status(`이미지 올리는 중… (${i + 1}/${ids.length})`);
+      const blob = await readPic(id);
+      if (!blob) throw new Error('이미지를 찾지 못했어요. BLANK에서 다시 넣어 주세요');
+      const r = await fetch(`${cfg.url}/api/logs/img/${id}`, {
+        method: 'PUT',
+        headers: { 'content-type': blob.type, authorization: 'Bearer ' + cfg.key },
+        body: blob,
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 401 ? '열쇠가 맞지 않아요. 아래 "블로그 연결"에서 다시 적어 주세요' : (d.error || `이미지를 올리지 못했어요 (${r.status})`));
+      sent[mark] = d.src;
+      write('blank.blog.pics', sent);
+    }
+    srcs[id] = sent[mark];
+  }
+  const { bgPic, ...style } = log.style || {};
+  if (bgPic) style.bgImage = srcs[bgPic];
+  const msgs = log.msgs.map(({ pic, ...m }) => (pic ? { ...m, image: { src: srcs[pic.id], w: pic.w, h: pic.h } } : m));
+  return { ...log, style, msgs };
+}
+
 let busy = false;
 $('send').addEventListener('click', async () => {
   const cfg = read('blank.blog', null);
@@ -141,12 +183,14 @@ $('send').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = '보내는 중…';
   const map = ids();
   let id = map[last.talk] || '';
+  let payload;
   const send = (method, path) => fetch(cfg.url + path, {
     method,
     headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key },
-    body: JSON.stringify(last.log),
+    body: JSON.stringify(payload),
   });
   try {
+    payload = await withImages(cfg, last.log);
     let r = id ? await send('PUT', '/api/logs/' + id) : await send('POST', '/api/logs');
     /* 블로그에서 지운 글이면 새로 올린다 */
     if (r.status === 404 && id) { id = ''; r = await send('POST', '/api/logs'); }
@@ -159,7 +203,7 @@ $('send').addEventListener('click', async () => {
     map[last.talk] = d.id; write('blank.blog.ids', map);
     status(updated ? '블로그 글을 고친 내용으로 바꿨어요' : '블로그에 올렸어요. BLANK에서 고친 뒤 다시 누르면 같은 글이 바뀌어요');
   } catch (e) {
-    status('블로그에 닿지 못했어요. 주소를 확인해 주세요', true);
+    status(e instanceof TypeError ? '블로그에 닿지 못했어요. 주소를 확인해 주세요' : e.message, true);
   } finally {
     busy = false; btn.textContent = label; show();
   }

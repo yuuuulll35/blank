@@ -409,6 +409,9 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 }
 #snack.on{opacity:1; transform:translate(-50%,0)}
 #undoDel[hidden], #mergeRange[hidden]{display:none}
+#bulkCast{width:auto; padding:5px 8px; font-size:12.5px}
+.ins.speaker .ins-menu{justify-content:flex-start; padding:8px 0 2px}
+.msg-pic{display:block; max-width:100%; max-height:120px; border-radius:6px}
 .msg.ranged{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
 </style>
 
@@ -485,7 +488,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
         <label class="toggle"><input type="checkbox" id="fluidChk"></label>
       </div>
       <div class="ctrl"><span>줄 간격 <b id="lineGapVal"></b></span><input type="range" id="lineGapR" min="70" max="160" step="5"></div>
-      <div class="ctrl"><span>문단 간격 <b id="paraGapVal"></b></span><input type="range" id="paraGapR" min="0" max="250" step="10"></div>
+      <div class="ctrl"><span><span id="paraGapName">문단 간격</span> <b id="paraGapVal"></b></span><input type="range" id="paraGapR" min="0" max="250" step="10"></div>
+      <div class="ctrl" id="narrGapCtrl" hidden><span>나레이션 간격 <b id="narrGapVal"></b></span><input type="range" id="narrGapR" min="0" max="250" step="10"></div>
       <div class="ctrl" id="rowJustify" hidden><span>양쪽 정렬</span>
         <label class="toggle"><input type="checkbox" id="justifyChk"></label>
       </div>
@@ -578,7 +582,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
           <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
         </div>
       </div>
-      <p class="hint" style="margin-top:2px">가지고 있는 글꼴 파일(ttf, otf, woff)을 올리면 글꼴 목록에 추가돼요. 새로고침하면 다시 올려야 해요. 배경 이미지와 올린 글꼴은 HTML 복사에는 들어가지 않아요.</p>
+      <p class="hint" style="margin-top:2px">가지고 있는 글꼴 파일(ttf, otf, woff)을 올리면 글꼴 목록에 추가돼요. 새로고침하면 다시 올려야 해요. 배경 이미지와 올린 글꼴은 HTML 복사에는 들어가지 않아요. 배경 이미지는 블로그로 올리면 함께 올라가요.</p>
     </details>
 
     <!-- 판형은 쓰지 않는다(한 장으로 길게). 예전 저장값과 맞추려고 값만 남겨 둔다 -->
@@ -628,9 +632,11 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn ghost" id="selInv">선택 반전</button>
       <button class="btn" id="undoDel" title="마지막 삭제·합치기 되돌리기 (Ctrl+Z)" hidden>되돌리기</button>
       <button class="btn primary" id="mergeRange" hidden></button>
+      <select id="bulkCast" title="체크한 문단(Shift+클릭으로 범위를 잡았으면 그 범위)의 화자를 한 번에 바꿔요"></select>
       <span class="hint" style="margin:0 0 0 auto">문단 사이 ＋로 추가 · Shift+클릭으로 범위를 잡아 합치기</span>
     </div>
     <div id="list"></div>
+    <input type="file" id="picFile" accept="image/*" multiple hidden>
     <div id="empty">아직 넣은 대화가 없어요. 오른쪽 '대화 넣기' 탭에 붙여넣거나, <br>위 버튼으로 직접 추가할 수 있어요.</div>
   </section>
 
@@ -701,7 +707,7 @@ const ST_DEFAULT = Object.freeze({
   showNames:true, title:'', source:'', myName:'', charName:'', frame:24,
   hlc:'#FFE95C', bgClear:false, ratioKey:'free', ratio:0, narrAlign:'left',
   book:'page', head:'', pageNum:true, justify:false, fluid:false,
-  lineGap:1, paraGap:1, srcAlign:'right', srcAccent:false, srcMark:'none',
+  lineGap:1, paraGap:1, narrGap:1, srcAlign:'right', srcAccent:false, srcMark:'none',
   sub:'', chatAlign:'sides', bubble:'fill', quoteAcc:false, postDate:'',
 });
 let st = Object.assign({}, ST_DEFAULT);
@@ -805,7 +811,7 @@ function undoDelete() {
   renderList(); renderCardSoon();
   snack(upper ? '합친 문단을 다시 나눴어요' : '지운 문단을 되돌렸어요');
 }
-/* a~b 문단을 줄을 바꿔 하나로 합친다. 화자와 체크는 맨 위 문단을 따른다.
+/* a~b 문단을 하나로 합친다. 화자와 체크는 맨 위 문단을 따른다.
    keepOpen 이면 합친 문단을 펼친 채 이어 붙은 자리에 커서를 둔다 */
 let caretAt = null;
 /* Alt 를 누른 채로는 이어서 합치고, Alt 를 떼면 접힌다 */
@@ -818,10 +824,13 @@ addEventListener('keyup', e => {
   closeEditor();
 });
 function mergeSpan(a, b, keepOpen) {
+  if (state.msgs.slice(a, b + 1).some(m => m.pic)) { snack('이미지는 합칠 수 없어요'); return; }
+  altMerged = !!keepOpen;
   const upper = state.msgs[a], lowers = state.msgs.slice(a + 1, b + 1), next = state.msgs[b + 1];
   setUndo({ msgs: lowers, i: a + 1, nextId: next && next.id, upper, upperText: upper.text });
   const seam = upper.text.length;
-  upper.text = [upper, ...lowers].map(m => m.text).filter(Boolean).join('\n');
+  /* 대사는 줄을 바꾸고, 나레이션은 한 문단으로 잇는다 */
+  upper.text = [upper, ...lowers].map(m => m.text).filter(Boolean).join(upper.role === 'narr' ? ' ' : '\n');
   state.msgs.splice(a + 1, lowers.length);
   openId = keepOpen ? upper.id : null; flashId = upper.id;
   caretAt = keepOpen ? seam : null;
@@ -852,6 +861,46 @@ function addMsgAt(at, c) {
   openId = flashId = msg.id;
   renderList(); renderCardSoon();
 }
+/* 화자 칩을 누르면 그 문단 아래에 인물 목록을 펼친다 */
+function speakerMenu(msg, head) {
+  const was = head.nextElementSibling;
+  const open = was && was.classList.contains('speaker') && was.classList.contains('open');
+  document.querySelectorAll('.ins.speaker').forEach(el => el.remove());
+  closeIns();
+  if (open) return;
+  const box = document.createElement('div'), menu = document.createElement('div');
+  box.className = 'ins speaker open'; menu.className = 'ins-menu';
+  const cur = castFor(msg);
+  const add = (label, c) => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (c === cur ? ' primary' : ''); b.textContent = label;
+    b.addEventListener('click', () => { setSpeaker(msg, c); renderList(); renderCardSoon(); });
+    menu.append(b);
+  };
+  add('나레이션', null);
+  st.cast.forEach(c => add(castLabel(c), c));
+  box.append(menu);
+  head.after(box);
+}
+const castLabel = c => (c.name ? c.name + (c.role === 'me' ? ' (PC)' : '') : (c.role === 'me' ? 'PC' : 'NPC'));
+function renderBulkCast() {
+  const b = $('bulkCast');
+  b.innerHTML = '';
+  b.add(new Option('화자 일괄 변경', ''));
+  st.cast.forEach((c, k) => b.add(new Option(castLabel(c), String(k))));
+  b.add(new Option('나레이션', 'narr'));
+}
+let picAt = 0;
+/* 주소에 ?me 를 붙여 한 번 열면 이 브라우저를 내 브라우저로 기억한다 */
+const isMe = (() => {
+  try {
+    if (new URLSearchParams(location.search).has('me')) {
+      localStorage.setItem('blank.me', '1');
+      history.replaceState(null, '', location.pathname);
+    }
+    return !!localStorage.getItem('blank.me');
+  } catch (e) { return false; }
+})();
 function closeIns() { document.querySelectorAll('.ins.open:not(.pin)').forEach(el => el.classList.remove('open')); }
 function insGap(at, pinned) {
   const gap = document.createElement('div');
@@ -873,8 +922,15 @@ function insGap(at, pinned) {
     menu.append(b);
   };
   chip('나레이션', null);
-  (st.cast || []).forEach(c => chip(c.name ? c.name + (c.role === 'me' ? ' (PC)' : '') : (c.role === 'me' ? 'PC' : 'NPC'), c));
-  if (at > 0 && at < state.msgs.length) {
+  (st.cast || []).forEach(c => chip(castLabel(c), c));
+  /* 삽화는 내 브라우저에서만 넣는다. HTML 복사와 블로그 올리기에만 쓰인다 */
+  if (isMe) {
+    const picBtn = document.createElement('button');
+    picBtn.className = 'btn'; picBtn.textContent = '이미지';
+    picBtn.addEventListener('click', () => { picAt = at; $('picFile').click(); });
+    menu.append(picBtn);
+  }
+  if (at > 0 && at < state.msgs.length && !state.msgs[at - 1].pic && !state.msgs[at].pic) {
     const join = document.createElement('button');
     join.className = 'btn ghost'; join.textContent = '위아래 합치기';
     join.title = '위 문단 뒤에 아래 문단을 이어 붙여요. 화자는 위 문단을 따라요';
@@ -897,12 +953,13 @@ function renderList() {
   renderAvatars();
   if (!state.msgs.some(m => m.id === openId)) openId = null;
   let focusTa = null;
+  renderBulkCast();
   const range = rangeIdx();
   $('mergeRange').hidden = !range || range[0] === range[1];
   if (range) $('mergeRange').textContent = (range[1] - range[0] + 1) + '문단 합치기';
   state.msgs.forEach((msg, i) => {
     list.append(insGap(i));
-    const open = msg.id === openId;
+    const open = msg.id === openId && !msg.pic;
     const row = document.createElement('div');
     row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '') + (msg.id === flashId ? ' flash' : '')
       + (range && i >= range[0] && i <= range[1] ? ' ranged' : '');
@@ -928,15 +985,12 @@ function renderList() {
     const chip = document.createElement('button');
     chip.className = 'chip ' + msg.role;
     chip.textContent = msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
-    chip.title = '누르면 다음 인물로 (등장인물 순서, 마지막은 나레이션)';
+    chip.title = '눌러서 화자 고르기';
     const cc = castColorFor(msg);
     if (cc) { chip.style.background = cc; chip.style.color = textOn(hexRgb(cc)); }
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      const opts = [...st.cast, null];
-      const cur = msg.role === 'narr' ? opts.length - 1 : opts.indexOf(castFor(msg));
-      setSpeaker(msg, opts[(cur + 1) % opts.length]);
-      renderList(); renderCardSoon();
+      speakerMenu(msg, chip.parentElement);
     });
 
     const del = document.createElement('button');
@@ -953,7 +1007,16 @@ function renderList() {
     head.className = 'msg-head';
     const prev = document.createElement('div');
     prev.className = 'msg-prev';
-    prev.textContent = msg.text.replace(/==|\*\*|__/g, '') || '(빈 문단)';
+    prev.textContent = chatText(msg).replace(/==|\*\*|__/g, '') || '(빈 문단)';
+    if (msg.pic) {
+      prev.textContent = '';
+      if (pics[msg.pic]) prev.append(Object.assign(new Image(), { src: pics[msg.pic].url, alt: '', className: 'msg-pic' }));
+      head.append(cb, Object.assign(document.createElement('span'), { className: 'chip narr', textContent: '이미지' }), prev, del);
+      head.style.cursor = 'default';
+      row.append(head);
+      list.append(row);
+      return;
+    }
     if (!open) {
       head.append(cb, chip, prev, del);
       row.append(head);
@@ -1018,8 +1081,7 @@ function renderList() {
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
         const at = e.key === 'ArrowUp' ? i : i + 1;
-        if (at < 1 || at >= state.msgs.length) snack('합칠 문단이 없어요');
-        else { altMerged = true; mergeAt(at, true); }
+        if (at < 1 || at >= state.msgs.length) snack('합칠 문단이 없어요'); else mergeAt(at, true);
       }
     });
     ta._grow = grow;
@@ -1151,6 +1213,12 @@ function drawSource(ctx, text, x, w, yBase, px, weight) {
 const BUBBLE_R = 1.6;
 function LH(px, mul) { return Math.round(px * mul * st.lineGap); }
 function GAP(px, mul) { return Math.round(px * mul * st.paraGap); }
+/* 채팅형 문단 사이(em): 나레이션끼리는 나레이션 간격, 대사끼리는 문단 간격, 대사와 나레이션·이미지 사이는 여백을 더 둔다 */
+function chatGapEm(a, b) {
+  const narr = m => !m.pic && m.role === 'narr';
+  if (narr(a) && narr(b)) return 1.2 * st.narrGap;
+  return (a.pic || b.pic || narr(a) || narr(b) ? 0.9 : 0) + 1.1 * st.paraGap;
+}
 
 /* 말풍선 — 화자 쪽 위 모서리 하나만 각지게 깎는다. 덧붙이는 꼬리가 아니라 모서리 처리라 형태가 깔끔하게 떨어진다.
    반지름은 글자 크기로 고정: 한 줄이면 알약이 되고, 길어져도 모서리가 커지지 않는다 */
@@ -1167,12 +1235,17 @@ function bubblePath(ctx, x, y, w, h, side, size) {
    속마음에 흔히 쓰는 홑따옴표는 뜻이 달라지므로 건드리지 않는다 */
 const QUOTE_PAIRS = [['"','"'], ['“','”'], ['「','」'], ['『','』']];
 function stripQuotes(text) {
-  const t = text.trim();
-  for (const [o, c] of QUOTE_PAIRS) {
-    if (t.length >= 2 && t.startsWith(o) && t.endsWith(c)) return t.slice(1, -1).trim();
-  }
-  return text;
+  const strip = s => {
+    const t = s.trim();
+    for (const [o, c] of QUOTE_PAIRS) {
+      if (t.length >= 2 && t.startsWith(o) && t.endsWith(c) && !t.slice(1, -1).includes(c)) return t.slice(1, -1).trim();
+    }
+    return s;
+  };
+  /* 합친 대사처럼 줄마다 따옴표가 있는 경우도 지운다 */
+  return strip(text).split('\n').map(strip).join('\n');
 }
+const chatText = m => (st.mode === 'chat' && m.role !== 'narr' ? stripQuotes(m.text) : m.text);
 
 /* ---------- 서식 런 엔진: ==형광펜== / **굵게** ---------- */
 function parseRuns(text, quotes) {
@@ -1261,7 +1334,7 @@ function drawRunLine(ctx, line, x0, yBase, px, inkColor, opts = {}) {
 }
 
 /* 배경/프로필 이미지 (세션 한정 — 저장 안 함) */
-let bgImg = null;
+let bgImg = null, bgPic = null;
 /* 화자 이름 → {img, src}. 채팅형·블로그형이 이름으로 찾아 쓴다 */
 let avatars = {};
 let avTarget = null;   /* 지금 편집 중인 화자 */
@@ -1331,7 +1404,7 @@ function fontStr(px, weight=400, italic=false) {
 /* 페이지 분할 상태: 렌더 중인 페이지의 메시지 부분집합과 위치 정보 */
 let PAGE_MSGS = null;
 let PAGE_CTX = { first: true, last: true, num: 1, total: 1 };
-function selMsgs() { return PAGE_MSGS || state.msgs.filter(m => m.sel); }
+function selMsgs() { return PAGE_MSGS || state.msgs.filter(m => m.sel && !m.pic); }
 
 /* 인용구형 — 발췌문을 하나의 문장 카드로 (그라데이션 배경, 작품명·저자 표기) */
 function drawQuote(ctx, measure) {
@@ -1966,10 +2039,9 @@ function drawCard(ctx, measure) {
     const bubChar = mix(bg, ink, 0.10), bubMe = acc;
     const RO = hlOpts(null);
     sel.forEach((m, idx) => {
-      if (idx > 0) y += GAP(size, 1.1);
+      if (idx > 0) y += Math.round(size * chatGapEm(sel[idx - 1], m));
       if (m.role === 'narr') {
         /* 나레이션: 말풍선 사이의 전체 폭 문단 */
-        y += Math.round(size * 0.9);
         const nLines = wrapRuns(ctx, m.text, W - pad * 2, size);
         for (const line of nLines) {
           y += lh;
@@ -1980,7 +2052,6 @@ function drawCard(ctx, measure) {
                         rgbCss(mix(ink, bg, 0.14)), RO);
           }
         }
-        y += Math.round(size * 0.9);
         return;
       }
       const isMe = !allLeft && m.role === 'me';
@@ -2065,7 +2136,7 @@ async function renderCard(force) {
 }
 async function paintCard(job) {
   const pagesBox = $('pages');
-  const sel = state.msgs.filter(m => m.sel);
+  const sel = state.msgs.filter(m => m.sel && !m.pic);
   const has = sel.length > 0;
   pagesBox.classList.toggle('clear', !!st.bgClear); /* 미리보기에서 투명이 보이게 바둑판 무늬 */
   pagesBox.hidden = !has;
@@ -2290,6 +2361,7 @@ function exportHtml() {
       if (title) out.push(`<h1 style="margin:0 0 1.25em;font-family:'Noto Sans KR','Pretendard Variable',sans-serif;font-size:2.4em;font-weight:900;line-height:1.26">${escHtml(title)}</h1>`);
     }
     sel.forEach((msg, i) => {
+      if (msg.pic) { out.push(picHtml(msg)); return; }
       out.push(`<p style="${css({ margin: 0, 'margin-top': i && K.gap ? (K.gap * pg) + 'em' : '',
         'text-indent': K.indent ? K.indent + 'em' : '', 'line-height': String(+(K.lh * lg).toFixed(3)),
         'white-space': 'pre-wrap', 'text-align': st.justify ? 'justify' : '' })}">${runsHtml(msg.text)}</p>`);
@@ -2303,9 +2375,9 @@ function exportHtml() {
       out.push(`<div style="height:2.4em"></div>`);
     }
     const plain = st.bubble === 'plain';
-    const gap = (1.1 * pg) + 'em';
     sel.forEach((msg, i) => {
-      const top = i ? gap : '0';
+      const top = i ? +chatGapEm(sel[i - 1], msg).toFixed(3) + 'em' : '0';
+      if (msg.pic) { out.push(picHtml(msg)); return; }
       if (msg.role === 'narr') {
         out.push(`<div style="${css({ margin: `${top} 0 0`, 'line-height': String(+(1.55 * lg).toFixed(3)), color: m(0.14),
           'text-align': st.narrAlign || 'left', 'white-space': 'pre-wrap' })}">${runsHtml(msg.text)}</div>`);
@@ -2330,6 +2402,15 @@ function exportHtml() {
     source();
   }
   return `<div style="${wrap}">\n${out.join('\n')}\n</div>`;
+}
+/* HTML 복사의 삽화는 글 안에 박히므로 폭 720px 로 줄인다 */
+function picHtml(msg) {
+  const p = pics[msg.pic];
+  if (!p) return '';
+  const k = Math.min(1, 720 / p.w), c = document.createElement('canvas');
+  c.width = Math.round(p.w * k); c.height = Math.round(p.h * k);
+  c.getContext('2d').drawImage(p.img, 0, 0, c.width, c.height);
+  return `<img src="${c.toDataURL('image/webp', 0.8)}" alt="" style="display:block;width:100%;height:auto;margin:1.4em 0;border-radius:6px">`;
 }
 /* 프로필 사진은 512px PNG 라 무겁다. 내보낼 때만 작게 줄인다 */
 function smallAvatar(img) {
@@ -2358,13 +2439,17 @@ $('htmlBtn').addEventListener('click', async () => {
    talk 은 대화 한 벌의 번호 — 대화를 비우면 새 번호라 블로그에도 새 글로 올라간다 */
 function exportPayload() {
   const sel = state.msgs.filter(m => m.sel);
-  const msgs = sel.map(m => ({ role: m.role, name: displayName(m), text: m.text, color: castColorFor(m) }));
+  const msgs = sel.map(m => {
+    const p = pics[m.pic];
+    if (p) return { role: 'narr', name: '', text: '', pic: { id: m.pic, w: p.w, h: p.h } };
+    return { role: m.role, name: displayName(m), text: chatText(m), color: castColorFor(m) };
+  });
   const used = new Set(msgs.map(m => m.name));
   const av = {};
   for (const [name, a] of Object.entries(avatars)) if (used.has(name) && a && a.img) av[name] = smallAvatar(a.img);
   const keys = ['font','size','width','bg','ink','acc','hlc','showNames','chatAlign','bubble','narrAlign',
-                'quoteAcc','justify','lineGap','paraGap','srcAlign','srcAccent','srcMark'];
-  const style = {}; for (const k of keys) style[k] = st[k];
+                'quoteAcc','justify','lineGap','paraGap','narrGap','srcAlign','srcAccent','srcMark'];
+  const style = { bgPic: bgImg && bgPic ? bgPic : '' }; for (const k of keys) style[k] = st[k];
   return { title: st.title, sub: st.sub, head: st.head, source: st.source,
            mode: st.mode, book: st.book, style, msgs, avatars: av };
 }
@@ -2375,7 +2460,9 @@ function talkId() {
   return id;
 }
 function saveForBlog() {
-  try { localStorage.setItem('blank.last', JSON.stringify({ talk: talkId(), at: Date.now(), log: exportPayload() })); } catch (e) {}
+  saveDraftSoon();
+  try { localStorage.setItem('blank.last', JSON.stringify({ talk: talkId(), at: Date.now(), log: exportPayload() })); }
+  catch (e) { snack('글이 너무 길어 블로그용 임시 저장을 못 했어요'); }
 }
 
 $('modalClose').addEventListener('click', () => $('modal').classList.remove('open'));
@@ -2481,9 +2568,9 @@ let avConn = null;
 function avDb() {
   if (avConn) return avConn;
   avConn = new Promise((res, rej) => {
-    const q = indexedDB.open('blank', 2);
+    const q = indexedDB.open('blank', 4);
     q.onupgradeneeded = () => {
-      for (const s of ['avatars', 'library']) if (!q.result.objectStoreNames.contains(s)) q.result.createObjectStore(s);
+      for (const s of ['avatars', 'library', 'pics', 'draft']) if (!q.result.objectStoreNames.contains(s)) q.result.createObjectStore(s);
     };
     q.onsuccess = () => {
       /* 새 버전을 연 다른 탭이 막히지 않게 연결을 내준다 */
@@ -2515,6 +2602,84 @@ async function loadAvatars() {
       img.src = srcs[i];
     })));
     if (names.length) { renderList(); renderCardSoon(); }
+  } catch (e) {}
+}
+/* 삽화·배경 이미지: 내용 해시 이름 → {img, blob, url, w, h}. 파일은 IndexedDB 에도 둬서 me.html 이 꺼내 블로그에 올린다 */
+const pics = {};
+const PIC_MAX = 1600;
+const hexOf = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+async function picEntry(blob) {
+  const url = URL.createObjectURL(blob), img = await loadImg(url);
+  return { img, blob, url, w: img.width, h: img.height };
+}
+async function addPic(file) {
+  let blob = file;
+  if (file.type !== 'image/gif') {
+    const url = URL.createObjectURL(file), src = await loadImg(url);
+    const k = Math.min(1, PIC_MAX / Math.max(src.width, src.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    blob = await new Promise(r => c.toBlob(r, 'image/webp', 0.9));
+    if (!blob || blob.type !== 'image/webp') blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+  }
+  const hash = crypto.subtle ? hexOf(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))
+    : hexOf(crypto.getRandomValues(new Uint8Array(32)));
+  const id = hash + '.' + ({ 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/gif': 'gif' })[blob.type];
+  if (pics[id]) return id;
+  pics[id] = await picEntry(blob);
+  try { (await avDb()).transaction('pics', 'readwrite').objectStore('pics').put(blob, id); } catch (e) {}
+  return id;
+}
+/* 임시저장: 대화·입력칸·배경을 자동으로 남겼다가 다시 열면 되살린다. 스타일과 등장인물은 따로 저장된다 */
+let draftReady = false, draftTimer = null;
+function saveDraftSoon() {
+  if (!draftReady) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 800);
+}
+async function saveDraft() {
+  if (!draftReady) return;
+  clearTimeout(draftTimer);
+  try {
+    const draft = { msgs: state.msgs, raw: $('raw').value, applied: appliedTexts, bgPic };
+    (await avDb()).transaction('draft', 'readwrite').objectStore('draft').put(draft, 'current');
+  } catch (e) {}
+}
+async function loadDraft() {
+  try {
+    const db = await avDb();
+    const ask = q => new Promise((res, rej) => { q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    const d = await ask(db.transaction('draft').objectStore('draft').get('current'));
+    if (d && (d.msgs.length || d.raw) && !state.msgs.length) {
+      const ids = [...new Set([...d.msgs.map(m => m.pic), d.bgPic].filter(Boolean))];
+      await Promise.all(ids.map(async id => {
+        const blob = await ask(db.transaction('pics').objectStore('pics').get(id));
+        if (blob) pics[id] = await picEntry(blob);
+      }));
+      state.msgs = d.msgs.filter(m => !m.pic || pics[m.pic]);
+      uidN = Math.max(uidN, ...state.msgs.map(m => m.id + 1));
+      $('raw').value = d.raw; appliedTexts = d.applied || [];
+      if (d.bgPic && pics[d.bgPic]) { bgPic = d.bgPic; bgImg = pics[d.bgPic].img; }
+      syncControls(); renderList(); renderCardSoon();
+      if (state.msgs.length) snack('지난 작업을 불러왔어요');
+    }
+  } catch (e) {}
+  draftReady = true;
+}
+/* 임시저장과 지난번 글에 쓰인 것만 남기고 저장소를 비운다 */
+async function prunePics() {
+  try {
+    const log = (JSON.parse(localStorage.getItem('blank.last') || 'null') || {}).log || {};
+    const keep = new Set((log.msgs || []).map(m => m.pic && m.pic.id));
+    if (log.style) keep.add(log.style.bgPic);
+    state.msgs.forEach(m => keep.add(m.pic));
+    keep.add(bgPic);
+    const store = (await avDb()).transaction('pics', 'readwrite').objectStore('pics');
+    const q = store.getAllKeys();
+    q.onsuccess = () => q.result.forEach(k => { if (!keep.has(k)) store.delete(k); });
   } catch (e) {}
 }
 /* 등장인물 보관함: 이름·역할·색·사진을 인물 하나씩 모아 두고, 누르면 지금 등장인물에 넣거나 뺀다.
@@ -2765,6 +2930,10 @@ function syncControls() {
   const lg = Math.round(st.lineGap * 100), pg = Math.round(st.paraGap * 100);
   $('lineGapR').value = lg; $('lineGapVal').textContent = lg + '%';
   $('paraGapR').value = pg; $('paraGapVal').textContent = pg + '%';
+  const ng = Math.round(st.narrGap * 100);
+  $('narrGapR').value = ng; $('narrGapVal').textContent = ng + '%';
+  $('narrGapCtrl').hidden = st.mode !== 'chat';
+  $('paraGapName').textContent = st.mode === 'chat' ? '대사 간격' : '문단 간격';
   $('widthR').value = st.width; $('widthVal').textContent = st.width + 'px';
   $('cBg').value = st.bg; $('cInk').value = st.ink; $('cAcc').value = st.acc;
   $('bgClearChk').checked = !!st.bgClear;
@@ -2858,6 +3027,7 @@ $('ratioSel').addEventListener('change', e => {
 });
 $('lineGapR').addEventListener('input', e => upd({ lineGap: +e.target.value / 100 }));
 $('paraGapR').addEventListener('input', e => upd({ paraGap: +e.target.value / 100 }));
+$('narrGapR').addEventListener('input', e => upd({ narrGap: +e.target.value / 100 }));
 $('showNames').addEventListener('change', e => upd({ showNames: e.target.checked }));
 $('headIn').addEventListener('input', e => upd({ head: e.target.value }));
 $('pageNumChk').addEventListener('change', e => upd({ pageNum: e.target.checked }));
@@ -2886,7 +3056,10 @@ $('bgFile').addEventListener('change', e => {
   const rd = new FileReader();
   rd.onload = () => {
     const img = new Image();
-    img.onload = () => { bgImg = img; syncControls(); renderCardSoon(); };
+    img.onload = async () => {
+      bgImg = img; syncControls(); renderCardSoon();
+      try { bgPic = await addPic(file); saveForBlog(); } catch (err) { bgPic = null; }
+    };
     img.src = rd.result;
   };
   rd.readAsDataURL(file);
@@ -3023,7 +3196,7 @@ function clearStyle() {
   const keep = { myName: st.myName, charName: st.charName, cast: st.cast };
   TALK_KEYS.forEach(k => keep[k] = st[k]);
   st = Object.assign({}, ST_DEFAULT, keep);
-  bgImg = null; $('bgFile').value = '';
+  bgImg = bgPic = null; $('bgFile').value = '';
   persist(); syncControls(); renderCardSoon();
 }
 $('resetTalk').addEventListener('click', () => {
@@ -3038,7 +3211,7 @@ $('resetStyle').addEventListener('click', () => {
   snack('스타일을 처음 상태로 되돌렸어요');
 });
 $('bgClear').addEventListener('click', () => {
-  bgImg = null; $('bgFile').value = '';
+  bgImg = bgPic = null; $('bgFile').value = '';
   syncControls(); renderCardSoon();
 });
 
@@ -3242,7 +3415,7 @@ $('sampleBtn').addEventListener('click', () => {
     || Object.keys(ST_DEFAULT).some(k => !skip.includes(k) && JSON.stringify(st[k]) !== JSON.stringify(ST_DEFAULT[k]));
   if (dirty && !confirm('예시를 보려면 대화·스타일을 처음 상태로 되돌려요. 등장인물은 그대로예요. 계속할까요?')) return;
   st = Object.assign({}, ST_DEFAULT, { cast: st.cast, myName: st.myName, charName: st.charName });
-  bgImg = null; $('bgFile').value = '';
+  bgImg = bgPic = null; $('bgFile').value = '';
   clearTalk();
   ensureCast();
   const pcC = st.cast.find(c => c.role === 'me'), npcC = st.cast.find(c => c.role === 'char');
@@ -3276,6 +3449,35 @@ addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   closeIns();
   if (rangeA !== null) { rangeClear(); renderList(); }
+});
+$('bulkCast').addEventListener('change', e => {
+  const v = e.target.value;
+  e.target.value = '';
+  if (!v) return;
+  const r = rangeIdx();
+  const all = state.msgs.filter(m => !m.pic);
+  const targets = (r ? state.msgs.slice(r[0], r[1] + 1) : state.msgs.filter(m => m.sel)).filter(m => !m.pic);
+  if (!targets.length) { snack('체크한 문단이 없어요'); return; }
+  const c = v === 'narr' ? null : st.cast[+v];
+  const label = c ? castLabel(c) : '나레이션';
+  if (!r && targets.length === all.length && !confirm(`체크한 ${targets.length}문단 전부 화자를 「${label}」로 바꿀까요?`)) return;
+  targets.forEach(m => setSpeaker(m, c));
+  rangeClear();
+  renderList(); renderCardSoon();
+  snack(`${targets.length}문단의 화자를 「${label}」로 바꿨어요`);
+});
+$('picFile').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  let at = picAt, failed = 0;
+  for (const file of files) {
+    try {
+      const pic = await addPic(file);
+      state.msgs.splice(at++, 0, { id: uid(), role: 'narr', name: '', text: '', sel: true, pic });
+    } catch (err) { failed++; }
+  }
+  renderList(); renderCardSoon();
+  if (failed) snack(`이미지 ${failed}장을 읽지 못했어요`);
 });
 $('undoDel').addEventListener('click', undoDelete);
 /* 입력칸 안의 Ctrl+Z 는 글자 되돌리기라 건드리지 않는다 */
@@ -3333,7 +3535,9 @@ function setSideOff(off) {
 $('sideToggle').addEventListener('click', () => setSideOff(!document.querySelector('.app-grid').classList.contains('side-off')));
 try { if (localStorage.getItem('blank.sideOff')) setSideOff(true); } catch (e) {}
 
-syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); loadAvatars(); loadLibrary();
+syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); loadAvatars(); loadLibrary(); loadDraft().then(prunePics);
+$('raw').addEventListener('input', saveDraftSoon);
+addEventListener('pagehide', saveDraft);
 
 /* ---------- 사용법 안내 ---------- */
 const TOUR = [
@@ -3346,9 +3550,9 @@ const TOUR = [
   { el: () => $('castLib'), prep() { setTab('edit'); $('castBox').open = true; $('castLib').open = true; },
     text: '자주 쓰는 인물은 별을 눌러 보관함에 저장해요. 이름·사진·말풍선 색이 함께 남고, 보관함에서 누르면 등장인물에 바로 들어가요.' },
   { el: () => $('list'), prep() { setTab('edit'); $('castLib').open = false; openId = null; renderList(); },
-    text: '체크한 문단만 카드에 들어가요. 색 칩을 누르면 화자가 바뀌고, 문단을 누르면 펼쳐져서 고칠 수 있어요.' },
+    text: '체크한 문단만 카드에 들어가요. 색 칩을 눌러 화자를 고르고, 위의 [화자 일괄 변경]으로 체크한 문단을 한 번에 바꿔요. 작업은 자동으로 임시저장돼요.' },
   { el: () => document.querySelectorAll('#list .ins')[1], prep() { setTab('edit'); closeIns(); const g = document.querySelectorAll('#list .ins')[1]; if (g) g.classList.add('open'); },
-    text: '문단 사이의 ＋를 누르면 그 자리에 새 문단을 넣거나 위아래 문단을 합칠 수 있어요. 잘못 지우거나 합쳤다면 [되돌리기]로 살려요.' },
+    text: '문단 사이의 ＋를 누르면 그 자리에 새 문단을 넣고, 위아래 문단을 합칠 수 있어요. 잘못 지우거나 합쳤다면 [되돌리기]로 살려요.' },
   { el: () => document.querySelector('.msg-tools'), prep() { setTab('edit'); const m = state.msgs.find(x => x.role !== 'narr') || state.msgs[0]; if (m) { openId = m.id; renderList(); } },
     text: '펼친 문단에서 글자를 고르고 형광펜·굵게·기울임을 넣어요. 긴 문단은 [여기서 나누기]로 쪼개요. [완료]를 누르면 접혀요.' },
   { el: () => $('looks'), prep() { openId = null; renderList(); setSide('style'); },
