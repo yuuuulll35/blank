@@ -881,7 +881,26 @@ let lastChecked = -1;
 /* 편집 목록: 접힌 줄은 두 줄 미리보기, 누르면 그 문단만 펼쳐져서 이름·사진(채팅형)·전문을 큰 입력칸으로 고친다.
    [완료](또는 Ctrl+Enter·Esc)로 다시 접는다. 한 번에 한 문단만 펼친다 */
 let openId = null;
-function closeEditor() { openId = null; renderList(); }
+function closeEditor() {
+  /* 접은 문단이 화면 위로 사라지지 않게, 그 문단 머리를 지금 자리(넘어갔으면 맨 위)에 붙잡는다 */
+  if (openId != null) { const o = rowOffset(openId); if (o != null) anchorTo(openId, Math.max(8, o)); }
+  openId = null; renderList();
+}
+/* 목록을 다시 그려도 보던 문단이 화면의 같은 높이에 남도록 기준 문단을 잡아 둔다.
+   따로 정하지 않으면 화면 맨 위에 보이던 문단이 기준이 된다 */
+let listAnchor = null;
+function msgRow(id) { return $('list').querySelector('.msg[data-id="' + CSS.escape(String(id)) + '"]'); }
+function rowOffset(id) {
+  const r = msgRow(id);
+  return r ? r.getBoundingClientRect().top - $('list').getBoundingClientRect().top : null;
+}
+function anchorTo(id, off) { listAnchor = { id, off: off == null ? rowOffset(id) : off }; }
+/* 문단이 목록 화면 안에 들어오게. 길어서 다 안 들어가면 머리부터 보이게 */
+function revealRow(row) {
+  const list = $('list'), lr = list.getBoundingClientRect(), rr = row.getBoundingClientRect();
+  if (rr.top < lr.top) list.scrollTop -= lr.top - rr.top + 8;
+  else if (rr.bottom > lr.bottom) list.scrollTop += Math.min(rr.bottom - lr.bottom + 8, rr.top - lr.top - 8);
+}
 /* 문단 삭제 되돌리기: 마지막으로 지운 한 문단만 기억한다 */
 let undoDel = null;
 function setUndo(u) { undoDel = u; $('undoDel').hidden = !u; }
@@ -893,6 +912,7 @@ function undoDelete() {
     if (k >= 0) state.msgs.splice(i, 0, ...state.msgs.splice(k, 1));
     setUndo(null); flashId = moveId;
     renderList(); renderCardSoon();
+    const back = msgRow(moveId); if (back) revealRow(back);
     snack('옮기기 전 자리로 되돌렸어요');
     return;
   }
@@ -1094,6 +1114,7 @@ function dragMsg(msg, row, grip, e0) {
     grip.removeEventListener('pointerup', end);
     grip.removeEventListener('pointercancel', end);
     cancelAnimationFrame(raf);
+    const lineAt = line.offsetTop - list.scrollTop + 5;
     line.remove(); row.classList.remove('dragging'); document.body.classList.remove('drag-on');
     if (!started || e.type === 'pointercancel') return;
     const to = at > from ? at - 1 : at;
@@ -1101,6 +1122,7 @@ function dragMsg(msg, row, grip, e0) {
     state.msgs.splice(to, 0, ...state.msgs.splice(from, 1));
     setUndo({ moveId: msg.id, i: from });
     rangeClear(); flashId = msg.id;
+    anchorTo(msg.id, lineAt);
     renderList(); renderCardSoon();
   };
   grip.addEventListener('pointermove', move);
@@ -1109,8 +1131,17 @@ function dragMsg(msg, row, grip, e0) {
 }
 function renderList() {
   const list = $('list');
-  /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
+  /* 다시 그리면 스크롤이 맨 위로 튄다 — 기준 문단의 화면 속 높이를 기억했다가 맞춘다 */
   const keepScroll = list.scrollTop;
+  let anchor = listAnchor; listAnchor = null;
+  if (!anchor || anchor.off == null) {
+    anchor = null;
+    const top = list.getBoundingClientRect().top;
+    for (const r of list.querySelectorAll(':scope > .msg')) {
+      const b = r.getBoundingClientRect();
+      if (b.bottom > top + 1) { anchor = { id: r.dataset.id, off: b.top - top }; break; }
+    }
+  }
   list.innerHTML = '';
   const before = state.msgs.length;
   state.msgs = state.msgs.filter(m => !m.fresh || m.text.trim() || m.id === openId);
@@ -1129,6 +1160,7 @@ function renderList() {
     list.append(insGap(i));
     const open = msg.id === openId && !msg.pic;
     const row = document.createElement('div');
+    row.dataset.id = msg.id;
     row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '') + (msg.id === flashId ? ' flash' : '')
       + (range && i >= range[0] && i <= range[1] ? ' ranged' : '');
 
@@ -1168,6 +1200,7 @@ function renderList() {
       e.stopPropagation();
       const next = state.msgs[i + 1];
       setUndo({ msgs: [msg], i, nextId: next && next.id });
+      if (next) anchorTo(next.id, rowOffset(msg.id));
       state.msgs.splice(i, 1); renderList(); renderCardSoon();
       snack('문단을 지웠어요. [되돌리기]나 Ctrl+Z로 살릴 수 있어요');
     });
@@ -1194,7 +1227,7 @@ function renderList() {
       head.addEventListener('mousedown', e => { if (e.shiftKey) e.preventDefault(); });
       head.addEventListener('click', e => {
         if (e.shiftKey) { rangePick(msg); return; }
-        rangeClear(); openId = msg.id; renderList();
+        rangeClear(); anchorTo(msg.id); openId = msg.id; renderList();
       });
       list.append(row);
       return;
@@ -1301,14 +1334,22 @@ function renderList() {
   });
   list.append(insGap(state.msgs.length, !state.msgs.length));
   flashId = null;
+  const ar = anchor && msgRow(anchor.id);
+  /* 화면 밖 문단은 content-visibility 때문에 처음엔 어림 높이(64px)라, 실제 크기가 잡힌 뒤 한 번 더 맞춘다 */
+  const pin = () => { if (ar && ar.isConnected) list.scrollTop += ar.getBoundingClientRect().top - list.getBoundingClientRect().top - anchor.off; };
+  if (ar) pin(); else list.scrollTop = keepScroll;
+  if (focusTa) focusTa._grow();
   requestAnimationFrame(() => {
-    list.scrollTop = keepScroll;
+    pin();
     if (focusTa) {
       focusTa._grow();
       if (document.activeElement !== focusTa) focusTa.focus({ preventScroll: true });
       if (caretAt !== null) { focusTa.setSelectionRange(caretAt, caretAt); caretAt = null; }
-      focusTa.closest('.msg').scrollIntoView({ block: 'nearest' });
     }
+    requestAnimationFrame(() => {
+      pin();
+      if (focusTa && focusTa.isConnected) revealRow(focusTa.closest('.msg'));
+    });
   });
 }
 /* ---------- 캔버스 렌더 ---------- */
