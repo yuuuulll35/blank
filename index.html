@@ -3501,12 +3501,13 @@ function parseExtension(raw) {
 
 let lastRaw = '';
 /* 입력칸은 처음 데이터를 넣는 곳이고 편집 목록은 따로다. 입력칸이 바뀌어 적용하면 목록을 새로 만든다 */
-function applyRaw() {
+async function applyRaw() {
   const raw = $('raw').value;
   if (!raw.trim()) { snack('붙여넣은 대화가 없어요'); return; }
   if (raw === lastRaw && state.msgs.length) { snack('바뀐 내용이 없어요'); return; }
   const parsed = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
   if (!parsed.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
+  if (state.msgs.length && !await askBox('입력칸 내용으로 새로 적용할까요?', '지금까지 편집한 내용은 모두 사라져요.', [['취소', false], ['적용하기', true, 'primary']])) return;
   setUndo(null);
   const castBefore = st.cast.map(c => c.name);
   state.msgs = parsed; lastRaw = raw;
