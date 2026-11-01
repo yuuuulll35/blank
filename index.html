@@ -221,6 +221,22 @@ details.cast > summary::-webkit-details-marker{display:none}
 .cast-row .del{flex:none; width:24px; height:28px; padding:0; border:none; background:none; color:var(--muted); font-size:14px}
 .cast-row .del:hover{color:var(--accent)}
 .cast-add{margin-top:6px; padding:5px 8px; font-size:12.5px}
+.cast-star{flex:none; display:flex; align-items:center; justify-content:center; width:18px; height:28px; margin-right:-3px; padding:0; border:none; background:none; color:var(--muted); cursor:pointer}
+.cast-star svg{fill:none; stroke:currentColor; stroke-width:2.6; stroke-linejoin:round}
+.cast-star.on svg{fill:currentColor}
+.cast-star:hover:not(:disabled), .cast-star.on{color:var(--accent)}
+.cast-star.stale{opacity:.5}
+.cast-star:disabled{opacity:.3; cursor:default}
+#castLib{margin-top:10px}
+#castLibBody{padding-top:8px}
+.lib-empty{font-size:11.5px; color:var(--muted); line-height:1.6}
+.lib-list{display:flex; flex-wrap:wrap; gap:6px}
+.lib-chip{display:flex; align-items:center; border:1px solid var(--line); border-radius:999px; background:var(--panel2)}
+.lib-chip.on{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.lib-use{display:flex; align-items:center; gap:6px; padding:3px 4px 3px 4px; border:none; background:none; color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer}
+.lib-pic{flex:none; width:24px; height:24px; border-radius:50%; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff}
+.lib-del{border:none; background:none; padding:0 9px 0 3px; color:var(--muted); font-size:11px; cursor:pointer}
+.lib-del:hover{color:var(--accent)}
 .msg-who select{padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:auto; min-width:9em}
 .msg-tools{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
 .msg-tools .btn{padding:5px 12px; font-size:12.5px}
@@ -414,9 +430,9 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <div class="ctrl" id="rowSource"><span id="sourceLabel">출처 표기</span><input type="text" id="sourceIn" placeholder="카드 맨 아래 작은 글씨 (비우면 생략)"></div>
       <div class="ctrl" id="rowDate"><span>날짜</span><input type="datetime-local" id="dateIn"></div>
     </details>
-    <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요.&#10;· 화자가 틀리게 나뉘면 편집 목록의 색 칩을 눌러 바꿀 수 있어요."></textarea>
+    <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요.&#10;· 화자가 틀리게 나뉘면 편집 목록의 색 칩을 눌러 바꿀 수 있어요.&#10;· 적용해도 글은 남아요. 이어서 붙이고 다시 적용하면 새 내용만 추가돼요."></textarea>
     <div class="row">
-      <button class="btn icon" id="resetTalk" title="대화 초기화 (대화·등장인물·제목·출처 지우기)" aria-label="대화 초기화"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.8 2.2v2.6h2.6"/></svg></button>
+      <button class="btn icon" id="resetTalk" title="대화 초기화 (대화·제목·출처 지우기, 등장인물은 그대로)" aria-label="대화 초기화"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.8 2.2v2.6h2.6"/></svg></button>
       <button class="btn primary half" id="parseBtn">적용하기</button>
     </div>
   </section>
@@ -595,6 +611,11 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <summary>등장인물 <span class="sum-val" id="castCount"></span><span class="sec-note">동그라미=사진 · PC는 오른쪽 말풍선</span></summary>
       <div id="castList"></div>
       <button class="btn ghost cast-add" id="castAdd">+ 인물 추가</button>
+      <button class="btn ghost cast-add" id="castClear" title="지금 등장인물을 모두 빼요. 보관함은 그대로예요">모두 지우기</button>
+      <details class="more" id="castLib">
+        <summary>보관함 <span class="sum-val" id="castLibCount"></span></summary>
+        <div id="castLibBody"></div>
+      </details>
       <input type="file" id="avFile" accept="image/*" hidden>
     </details>
     <div class="edit-tools">
@@ -2406,7 +2427,130 @@ function castColorFor(m) { const c = castFor(m); return c && c.color ? c.color :
 function freezeNames() {
   for (const m of state.msgs) if (m.role !== 'narr' && !m.name) m.name = displayName(m);
 }
-function castChanged() { syncCastNames(); persist(); renderList(); renderCardSoon(); }
+function castChanged() { syncCastNames(); persist(); saveAvatars(); renderList(); renderCardSoon(); }
+/* 이름·색은 st 와 함께 localStorage 에, 사진은 용량이 커서 IndexedDB 에 둔다. 못 쓰는 환경이면 조용히 넘어간다 */
+let avConn = null;
+function avDb() {
+  if (avConn) return avConn;
+  avConn = new Promise((res, rej) => {
+    const q = indexedDB.open('blank', 2);
+    q.onupgradeneeded = () => {
+      for (const s of ['avatars', 'library']) if (!q.result.objectStoreNames.contains(s)) q.result.createObjectStore(s);
+    };
+    q.onsuccess = () => {
+      /* 새 버전을 연 다른 탭이 막히지 않게 연결을 내준다 */
+      q.result.onversionchange = () => { q.result.close(); avConn = null; };
+      res(q.result);
+    };
+    q.onerror = () => { avConn = null; rej(q.error); };
+  });
+  return avConn;
+}
+async function saveAvatars() {
+  try {
+    const db = await avDb();
+    const store = db.transaction('avatars', 'readwrite').objectStore('avatars');
+    store.clear();
+    for (const [name, a] of Object.entries(avatars)) store.put(a.src, name);
+  } catch (e) {}
+}
+async function loadAvatars() {
+  try {
+    const db = await avDb();
+    const store = db.transaction('avatars').objectStore('avatars');
+    const ask = q => new Promise((res, rej) => { q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    const [names, srcs] = await Promise.all([ask(store.getAllKeys()), ask(store.getAll())]);
+    await Promise.all(names.map((name, i) => new Promise(res => {
+      const img = new Image();
+      img.onload = () => { if (!avatars[name]) avatars[name] = { img, src: srcs[i] }; res(); };
+      img.onerror = res;
+      img.src = srcs[i];
+    })));
+    if (names.length) { renderList(); renderCardSoon(); }
+  } catch (e) {}
+}
+/* 등장인물 보관함: 이름·역할·색·사진을 인물 하나씩 모아 두고, 누르면 지금 등장인물에 넣거나 뺀다.
+   대화 초기화나 등장인물 모두 지우기로는 지워지지 않는다 */
+let library = [];
+async function loadLibrary() {
+  try {
+    const db = await avDb();
+    const q = db.transaction('library').objectStore('library').getAll();
+    library = await new Promise((res, rej) => { q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    renderCast();
+  } catch (e) {}
+}
+async function libWrite(fn) {
+  try {
+    const db = await avDb();
+    fn(db.transaction('library', 'readwrite').objectStore('library'));
+  } catch (e) {}
+}
+const libItem = c => ({ name: c.name, role: c.role, color: c.color, src: avatars[c.name] ? avatars[c.name].src : '' });
+const libSame = (a, b) => a.role === b.role && a.color === b.color && a.src === b.src;
+function libKeep(c) {
+  const item = libItem(c), i = library.findIndex(x => x.name === c.name);
+  if (i < 0) library.push(item); else library[i] = item;
+  libWrite(s => s.put(item, item.name));
+  renderCast();
+  snack(`「${c.name}」을 보관함에 저장했어요`);
+}
+function libRemove(item) {
+  library.splice(library.indexOf(item), 1);
+  libWrite(s => s.delete(item.name));
+  renderCast();
+}
+function libUse(item) {
+  const cur = st.cast.find(c => c.name === item.name);
+  if (cur) { if (st.cast.length > 1) removeCast(cur); return; }
+  const fill = () => {
+    const empty = st.cast.find(c => !c.name && c.role === item.role);
+    if (empty) Object.assign(empty, { name: item.name, color: item.color });
+    else st.cast.push({ name: item.name, role: item.role, color: item.color });
+    castChanged();
+  };
+  if (!item.src) { fill(); return; }
+  const img = new Image();
+  img.onload = () => { avatars[item.name] = { img, src: item.src }; fill(); };
+  img.onerror = fill;
+  img.src = item.src;
+}
+function renderLibrary() {
+  const box = $('castLibBody');
+  box.innerHTML = '';
+  $('castLibCount').textContent = library.length ? library.length + '명' : '자주 쓰는 인물 저장';
+  if (!library.length) {
+    box.append(Object.assign(document.createElement('div'), { className: 'lib-empty', textContent: '자주 쓰는 인물의 이름·사진·말풍선 색을 저장해 둘 수 있어요. 인물 줄의 별을 누르면 여기에 모이고, 여기서 누르면 등장인물에 바로 들어가요.' }));
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'lib-list';
+  for (const item of library) {
+    const on = st.cast.some(c => c.name === item.name);
+    const chip = document.createElement('div');
+    chip.className = 'lib-chip' + (on ? ' on' : '');
+    const use = document.createElement('button');
+    use.className = 'lib-use';
+    use.title = on ? '등장인물에서 빼기' : '등장인물에 넣기';
+    const pic = Object.assign(document.createElement('span'), { className: 'lib-pic', textContent: item.src ? '' : item.name.slice(0, 1) });
+    if (item.src) pic.style.backgroundImage = 'url(' + item.src + ')';
+    else pic.style.background = item.color;
+    use.append(pic, document.createTextNode(item.name));
+    use.addEventListener('click', () => libUse(item));
+    const del = document.createElement('button');
+    del.className = 'lib-del'; del.textContent = '✕'; del.title = '보관함에서 지우기';
+    del.addEventListener('click', () => { if (confirm(`보관함에서 「${item.name}」을 지울까요?`)) libRemove(item); });
+    chip.append(use, del);
+    wrap.append(chip);
+  }
+  box.append(wrap);
+}
+$('castClear').addEventListener('click', () => {
+  if (!confirm('지금 등장인물을 모두 뺄까요? 대사는 나레이션으로 바뀌어요. (보관함은 그대로예요)')) return;
+  for (const m of state.msgs) { m.role = 'narr'; m.name = ''; }
+  st.cast = null; st.myName = ''; st.charName = ''; avatars = {};
+  ensureCast(); castChanged();
+});
 /* 대화를 적용하면 목록에 없는 화자를 인물로 더한다 (빈 기본 칸이 있으면 거기 먼저) */
 function autoAddCast() {
   for (const m of state.msgs) {
@@ -2497,14 +2641,25 @@ function renderCast() {
     del.className = 'del'; del.textContent = '✕'; del.title = '인물 지우기';
     del.hidden = st.cast.length <= 1;
     del.addEventListener('click', () => removeCast(c));
+    const keep = document.createElement('button');
+    const kept = library.find(x => x.name === c.name);
+    const same = kept && libSame(kept, libItem(c));
+    keep.className = 'cast-star' + (kept ? ' on' : '') + (kept && !same ? ' stale' : '');
+    keep.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>';
+    keep.title = !c.name ? '이름을 적으면 보관함에 넣을 수 있어요'
+      : same ? '보관함에서 빼기' : kept ? '바뀐 내용으로 보관함 갱신' : '보관함에 넣기';
+    keep.setAttribute('aria-label', keep.title);
+    keep.disabled = !c.name;
+    keep.addEventListener('click', () => { if (same) libRemove(kept); else libKeep(c); });
     if (c.name && avatars[c.name]) {
       const avDel = document.createElement('button');
       avDel.className = 'btn ghost cast-reset'; avDel.textContent = '사진 빼기';
-      avDel.addEventListener('click', () => { delete avatars[c.name]; renderCast(); renderCardSoon(); if (openId) renderList(); });
-      row.append(av, nm, role, col, reset, avDel, del);
-    } else row.append(av, nm, role, col, reset, del);
+      avDel.addEventListener('click', () => { delete avatars[c.name]; saveAvatars(); renderCast(); renderCardSoon(); if (openId) renderList(); });
+      row.append(keep, av, nm, role, col, reset, avDel, del);
+    } else row.append(keep, av, nm, role, col, reset, del);
     box.append(row);
   });
+  renderLibrary();
 }
 /* 예전 이름 — 목록을 다시 그릴 때마다 불린다 */
 function renderAvatars() { renderCast(); }
@@ -2805,14 +2960,13 @@ function syncInfoSum() {
 }
 
 const TALK_KEYS = ['title', 'source', 'head', 'sub', 'postDate'];
-/* 대화 쪽만 비운다 — 스타일은 그대로 */
+/* 대화 쪽만 비운다 — 스타일과 등장인물은 그대로 */
 function clearTalk() {
   state.msgs = [];
   setUndo(null);
-  st.myName = ''; st.charName = ''; st.cast = null;
   TALK_KEYS.forEach(k => st[k] = ST_DEFAULT[k]);
-  $('raw').value = '';
-  avatars = {}; avSrc = null; avTarget = null; $('avFile').value = '';
+  $('raw').value = ''; appliedTexts = [];
+  avSrc = null; avTarget = null; $('avFile').value = '';
   try { localStorage.removeItem('blank.talk'); } catch (e) {} /* 새 대화 → 블로그에도 새 글 */
   persist(); syncControls(); renderList(); renderCardSoon();
 }
@@ -2825,7 +2979,7 @@ function clearStyle() {
   persist(); syncControls(); renderCardSoon();
 }
 $('resetTalk').addEventListener('click', () => {
-  if (!confirm('넣어둔 대화·등장인물·제목·출처를 모두 지울까요? (스타일은 그대로예요)')) return;
+  if (!confirm('넣어둔 대화·제목·출처를 모두 지울까요? (스타일과 등장인물은 그대로예요)')) return;
   clearTalk();
   setTab('edit');
   snack('대화를 비웠어요');
@@ -2923,6 +3077,7 @@ $('avApply').addEventListener('click', () => {
   const img = new Image();
   img.onload = () => {
     if (avTarget) avatars[avTarget] = { img, src };
+    saveAvatars();
     renderAvatars(); renderCardSoon();
     if (openId) renderList(); /* 펼친 문단의 사진 동그라미도 바꾼다 */
   };
@@ -3011,14 +3166,21 @@ function parseExtension(raw) {
   } catch (e) { return null; }
 }
 
+let appliedTexts = [];
 $('parseBtn').addEventListener('click', () => {
   const raw = $('raw').value;
   if (!raw.trim()) { snack('붙여넣은 대화가 없어요'); return; }
-  const added = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
-  if (!added.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
+  const parsed = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
+  if (!parsed.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
+  /* 입력칸은 비우지 않는다. 지난번과 앞부분이 같으면 그 뒤에 새로 쓴 문단만 더한다 */
+  if (!state.msgs.length) appliedTexts = [];
+  let same = 0;
+  while (same < appliedTexts.length && same < parsed.length && appliedTexts[same] === parsed[same].text) same++;
+  const added = parsed.slice(same);
+  if (!added.length) { snack('새로 추가된 내용이 없어요'); return; }
+  appliedTexts = parsed.map(m => m.text);
   const castBefore = st.cast.map(c => c.name);
   state.msgs = state.msgs.concat(added);
-  $('raw').value = '';
   autoAddCast();
   const newCast = st.cast.map(c => c.name).filter(n => n && !castBefore.includes(n));
   renderList(); renderCardSoon();
@@ -3028,10 +3190,10 @@ $('parseBtn').addEventListener('click', () => {
 /* 예시 보기: 전체 초기화 후 예시 대화를 넣어 미리보기로 보여준다 */
 $('sampleBtn').addEventListener('click', () => {
   const skip = ['cast', 'myName', 'charName', 'ratioKey', 'ratio', 'pageNum'];
-  const dirty = state.msgs.length || (st.cast && st.cast.some(c => c.name))
+  const dirty = state.msgs.length
     || Object.keys(ST_DEFAULT).some(k => !skip.includes(k) && JSON.stringify(st[k]) !== JSON.stringify(ST_DEFAULT[k]));
-  if (dirty && !confirm('예시를 보려면 대화·등장인물·스타일을 모두 처음 상태로 되돌려요. 계속할까요?')) return;
-  st = Object.assign({}, ST_DEFAULT);
+  if (dirty && !confirm('예시를 보려면 대화·스타일을 처음 상태로 되돌려요. 등장인물은 그대로예요. 계속할까요?')) return;
+  st = Object.assign({}, ST_DEFAULT, { cast: st.cast, myName: st.myName, charName: st.charName });
   bgImg = null; $('bgFile').value = '';
   clearTalk();
   ensureCast();
@@ -3108,7 +3270,7 @@ $('sideTalk').addEventListener('click', () => setSide('talk'));
 $('sideStyle').addEventListener('click', () => setSide('style'));
 try { setSide(localStorage.getItem('blank.side') || 'talk'); } catch (e) { setSide('talk'); }
 
-syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard();
+syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); loadAvatars(); loadLibrary();
 
 /* ---------- 사용법 안내 ---------- */
 const TOUR = [
