@@ -51,6 +51,8 @@ input,textarea,select{font:inherit; color:var(--ink)}
   order:2; min-height:0; display:flex; flex-direction:column;
   border-left:1px solid var(--line); background:var(--bg);
 }
+.app-grid.side-off{grid-template-columns:1fr}
+.app-grid.side-off .sidebar{display:none}
 .side-tabs{
   flex:none; display:flex; align-items:center; gap:2px;
   padding:10px 16px 0; border-bottom:1px solid var(--line);
@@ -406,7 +408,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
   opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
 }
 #snack.on{opacity:1; transform:translate(-50%,0)}
-#undoDel[hidden]{display:none}
+#undoDel[hidden], #mergeRange[hidden]{display:none}
+.msg.ranged{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
 </style>
 
 <div class="app-grid">
@@ -602,6 +605,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     <div class="row" style="margin:0">
       <button class="btn" id="saveBtn">이미지 저장</button>
       <button class="btn primary" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
+      <button class="btn icon" id="sideToggle" title="사이드바 접기" aria-label="사이드바 접기" aria-expanded="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.8" y="2.6" width="12.4" height="10.8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.6v10.8" stroke="currentColor" stroke-width="1.5"/></svg></button>
     </div>
   </div>
 
@@ -623,7 +627,8 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn ghost" id="selNone">전체 해제</button>
       <button class="btn ghost" id="selInv">선택 반전</button>
       <button class="btn" id="undoDel" title="마지막 삭제·합치기 되돌리기 (Ctrl+Z)" hidden>되돌리기</button>
-      <span class="hint" style="margin:0 0 0 auto">문단을 누르면 펼쳐서 고쳐요 · 문단 사이 ＋로 추가해요</span>
+      <button class="btn primary" id="mergeRange" hidden></button>
+      <span class="hint" style="margin:0 0 0 auto">문단 사이 ＋로 추가 · Shift+클릭으로 범위를 잡아 합치기</span>
     </div>
     <div id="list"></div>
     <div id="empty">아직 넣은 대화가 없어요. 오른쪽 '대화 넣기' 탭에 붙여넣거나, <br>위 버튼으로 직접 추가할 수 있어요.</div>
@@ -792,23 +797,51 @@ let undoDel = null;
 function setUndo(u) { undoDel = u; $('undoDel').hidden = !u; }
 function undoDelete() {
   if (!undoDel) return;
-  const { msg, i, nextId, upper, upperText } = undoDel;
+  const { msgs, i, nextId, upper, upperText } = undoDel;
   const at = state.msgs.findIndex(m => m.id === nextId);
-  state.msgs.splice(at < 0 ? Math.min(i, state.msgs.length) : at, 0, msg);
+  state.msgs.splice(at < 0 ? Math.min(i, state.msgs.length) : at, 0, ...msgs);
   if (upper) { upper.text = upperText; openId = null; }
   setUndo(null);
   renderList(); renderCardSoon();
   snack(upper ? '합친 문단을 다시 나눴어요' : '지운 문단을 되돌렸어요');
 }
-/* at 위아래 두 문단을 합친다. 화자와 체크는 위 문단을 따른다 */
-function mergeAt(at) {
-  const upper = state.msgs[at - 1], lower = state.msgs[at], next = state.msgs[at + 1];
-  setUndo({ msg: lower, i: at, nextId: next && next.id, upper, upperText: upper.text });
-  upper.text = [upper.text, lower.text].filter(Boolean).join('\n');
-  state.msgs.splice(at, 1);
-  openId = null; flashId = upper.id;
+/* a~b 문단을 줄을 바꿔 하나로 합친다. 화자와 체크는 맨 위 문단을 따른다.
+   keepOpen 이면 합친 문단을 펼친 채 이어 붙은 자리에 커서를 둔다 */
+let caretAt = null;
+/* Alt 를 누른 채로는 이어서 합치고, Alt 를 떼면 접힌다 */
+let altMerged = false;
+addEventListener('keyup', e => {
+  if (e.key !== 'Alt' || !altMerged) return;
+  altMerged = false;
+  e.preventDefault();
+  flashId = openId;
+  closeEditor();
+});
+function mergeSpan(a, b, keepOpen) {
+  const upper = state.msgs[a], lowers = state.msgs.slice(a + 1, b + 1), next = state.msgs[b + 1];
+  setUndo({ msgs: lowers, i: a + 1, nextId: next && next.id, upper, upperText: upper.text });
+  const seam = upper.text.length;
+  upper.text = [upper, ...lowers].map(m => m.text).filter(Boolean).join('\n');
+  state.msgs.splice(a + 1, lowers.length);
+  openId = keepOpen ? upper.id : null; flashId = upper.id;
+  caretAt = keepOpen ? seam : null;
+  rangeClear();
   renderList(); renderCardSoon();
   snack('문단을 합쳤어요. [되돌리기]나 Ctrl+Z로 다시 나눌 수 있어요');
+}
+const mergeAt = (at, keepOpen) => mergeSpan(at - 1, at, keepOpen);
+/* Shift+클릭으로 합칠 범위를 잡는다. 카드에 넣는 체크와는 따로 논다 */
+let rangeA = null, rangeB = null;
+function rangeIdx() {
+  const a = state.msgs.findIndex(m => m.id === rangeA), b = state.msgs.findIndex(m => m.id === rangeB);
+  return a < 0 || b < 0 ? null : [Math.min(a, b), Math.max(a, b)];
+}
+function rangeClear() { rangeA = rangeB = null; }
+function rangePick(msg) {
+  if (rangeA === null) rangeA = msg.id;
+  rangeB = msg.id;
+  openId = null;
+  renderList();
 }
 /* 새 문단은 누른 자리에 들어가 바로 입력 상태로 열린다. 아무것도 안 쓰고 닫으면 저절로 사라진다 */
 let flashId = null;
@@ -864,11 +897,15 @@ function renderList() {
   renderAvatars();
   if (!state.msgs.some(m => m.id === openId)) openId = null;
   let focusTa = null;
+  const range = rangeIdx();
+  $('mergeRange').hidden = !range || range[0] === range[1];
+  if (range) $('mergeRange').textContent = (range[1] - range[0] + 1) + '문단 합치기';
   state.msgs.forEach((msg, i) => {
     list.append(insGap(i));
     const open = msg.id === openId;
     const row = document.createElement('div');
-    row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '') + (msg.id === flashId ? ' flash' : '');
+    row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '') + (msg.id === flashId ? ' flash' : '')
+      + (range && i >= range[0] && i <= range[1] ? ' ranged' : '');
 
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = msg.sel;
@@ -907,7 +944,7 @@ function renderList() {
     del.addEventListener('click', (e) => {
       e.stopPropagation();
       const next = state.msgs[i + 1];
-      setUndo({ msg, i, nextId: next && next.id });
+      setUndo({ msgs: [msg], i, nextId: next && next.id });
       state.msgs.splice(i, 1); renderList(); renderCardSoon();
       snack('문단을 지웠어요. [되돌리기]나 Ctrl+Z로 살릴 수 있어요');
     });
@@ -921,7 +958,11 @@ function renderList() {
       head.append(cb, chip, prev, del);
       row.append(head);
       head.title = '눌러서 고치기';
-      head.addEventListener('click', () => { openId = msg.id; renderList(); });
+      head.addEventListener('mousedown', e => { if (e.shiftKey) e.preventDefault(); });
+      head.addEventListener('click', e => {
+        if (e.shiftKey) { rangePick(msg); return; }
+        rangeClear(); openId = msg.id; renderList();
+      });
       list.append(row);
       return;
     }
@@ -974,6 +1015,12 @@ function renderList() {
     ta.addEventListener('keydown', e => {
       if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); closeEditor(); }
       if (e.key === 'Enter' && e.altKey) { e.preventDefault(); addMsgAt(i + 1, msg.role === 'narr' ? null : castFor(msg)); }
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const at = e.key === 'ArrowUp' ? i : i + 1;
+        if (at < 1 || at >= state.msgs.length) snack('합칠 문단이 없어요');
+        else { altMerged = true; mergeAt(at, true); }
+      }
     });
     ta._grow = grow;
     focusTa = ta;
@@ -1015,7 +1062,7 @@ function renderList() {
     done.className = 'btn primary'; done.textContent = '완료';
     done.title = 'Ctrl+Enter 또는 Esc';
     done.addEventListener('click', closeEditor);
-    acts.append(del, Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '서식은 겹쳐 쓸 수 있어요 · Alt+Enter로 다음 문단 추가' }), done);
+    acts.append(del, Object.assign(document.createElement('span'), { className: 'msg-note', textContent: 'Alt+Enter 다음 문단 추가 · Alt+↑↓ 위아래와 합치기' }), done);
     body.append(tools, ta, acts);
     row.append(body);
     list.append(row);
@@ -1027,6 +1074,7 @@ function renderList() {
     if (focusTa) {
       focusTa._grow();
       if (document.activeElement !== focusTa) focusTa.focus({ preventScroll: true });
+      if (caretAt !== null) { focusTa.setSelectionRange(caretAt, caretAt); caretAt = null; }
       focusTa.closest('.msg').scrollIntoView({ block: 'nearest' });
     }
   });
@@ -3221,8 +3269,14 @@ addEventListener('click', e => { if (!e.target.closest('.ins, #tour')) closeIns(
 /* 문단 밖 빈 곳을 누르면 접는다. 글자를 드래그하다 밖에서 놓아도 닫히지 않게 누르는 순간만 본다 */
 $('editPane').addEventListener('mousedown', e => {
   if (openId && !e.target.closest('.msg, .ins, .cast')) closeEditor();
+  if (rangeA !== null && !e.target.closest('.msg, #mergeRange')) { rangeClear(); renderList(); }
 });
-addEventListener('keydown', e => { if (e.key === 'Escape') closeIns(); });
+$('mergeRange').addEventListener('click', () => { const r = rangeIdx(); if (r) mergeSpan(r[0], r[1]); });
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  closeIns();
+  if (rangeA !== null) { rangeClear(); renderList(); }
+});
 $('undoDel').addEventListener('click', undoDelete);
 /* 입력칸 안의 Ctrl+Z 는 글자 되돌리기라 건드리지 않는다 */
 addEventListener('keydown', e => {
@@ -3269,6 +3323,15 @@ function setSide(t) {
 $('sideTalk').addEventListener('click', () => setSide('talk'));
 $('sideStyle').addEventListener('click', () => setSide('style'));
 try { setSide(localStorage.getItem('blank.side') || 'talk'); } catch (e) { setSide('talk'); }
+function setSideOff(off) {
+  document.querySelector('.app-grid').classList.toggle('side-off', off);
+  const b = $('sideToggle'), label = off ? '사이드바 펴기' : '사이드바 접기';
+  b.title = label; b.setAttribute('aria-label', label); b.setAttribute('aria-expanded', String(!off));
+  try { localStorage.setItem('blank.sideOff', off ? '1' : ''); } catch (e) {}
+  if (zoom === 'fit') applyZoom();
+}
+$('sideToggle').addEventListener('click', () => setSideOff(!document.querySelector('.app-grid').classList.contains('side-off')));
+try { if (localStorage.getItem('blank.sideOff')) setSideOff(true); } catch (e) {}
 
 syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); loadAvatars(); loadLibrary();
 
@@ -3329,6 +3392,7 @@ function tourShow(i) {
   tourPlace();
 }
 function startTour() {
+  setSideOff(false);
   if (!state.msgs.length) $('sampleBtn').click();
   tourShow(0);
 }
