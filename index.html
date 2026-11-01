@@ -3471,14 +3471,20 @@ $('parseBtn').addEventListener('click', () => {
   if (!raw.trim()) { snack('붙여넣은 대화가 없어요'); return; }
   const parsed = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
   if (!parsed.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
-  /* 입력칸은 비우지 않는다. 지난번과 앞부분이 같으면 그 뒤에 새로 쓴 문단만 더한다 */
+  /* 입력칸은 비우지 않는다. 지난번 글 뒤에 이어 쓴 경우에만 새 문단을 더하고,
+     줄이거나 고쳐서 달라졌으면 목록을 교체할지 묻는다 */
   if (!state.msgs.length) appliedTexts = [];
+  const keys = parsed.map(m => [m.role, m.name, m.text].join('\0'));
   let same = 0;
-  while (same < appliedTexts.length && same < parsed.length && appliedTexts[same] === parsed[same].text) same++;
-  const added = parsed.slice(same);
-  if (!added.length) { snack('새로 추가된 내용이 없어요'); return; }
-  appliedTexts = parsed.map(m => m.text);
+  while (same < appliedTexts.length && same < keys.length && appliedTexts[same] === keys[same]) same++;
+  if (same === appliedTexts.length && same === keys.length) { snack('지난번과 같은 내용이에요'); return; }
   const castBefore = st.cast.map(c => c.name);
+  let added = parsed;
+  if (same === appliedTexts.length) added = parsed.slice(same);
+  else if (confirm('입력칸 내용이 지난번과 달라졌어요. 편집 목록을 이 내용으로 바꿀까요?\n\n확인: 목록을 새 내용으로 교체\n취소: 지금 목록 뒤에 전부 추가')) {
+    state.msgs = []; openId = null; rangeClear(); setUndo(null);
+  }
+  appliedTexts = keys;
   state.msgs = state.msgs.concat(added);
   autoAddCast();
   const newCast = st.cast.map(c => c.name).filter(n => n && !castBefore.includes(n));
