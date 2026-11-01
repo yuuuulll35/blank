@@ -66,7 +66,7 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
 
   <section class="box">
     <h2>블로그 연결</h2>
-    <label>블로그 주소<input id="url" placeholder="https://my-blog.pages.dev" autocomplete="off"></label>
+    <label>블로그 주소<input id="url" placeholder="https://smallroom.site" autocomplete="off"></label>
     <label>열쇠 (Cloudflare에 적어 둔 LOG_KEY)<input id="key" type="password" autocomplete="off"></label>
     <div class="row">
       <button class="btn" id="saveCfg">저장</button>
@@ -80,6 +80,8 @@ const $ = id => document.getElementById(id);
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch (e) { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const MODE = { book: '소설형', chat: '채팅형' };
+/* 내 블로그 주소는 미리 채워 둔다. 열쇠는 공개 저장소라 넣지 않고 브라우저마다 한 번 적는다 */
+const BLOG_URL = 'https://smallroom.site';
 
 /* 대화 한 벌(talk)마다 올린 글 번호를 기억해, 고친 뒤 다시 누르면 같은 글을 덮어쓴다 */
 const ids = () => read('blank.blog.ids', {});
@@ -115,7 +117,7 @@ function show() {
 
 function loadCfg() {
   const cfg = read('blank.blog', {}) || {};
-  $('url').value = cfg.url || '';
+  $('url').value = cfg.url || BLOG_URL;
   $('key').value = cfg.key || '';
 }
 $('saveCfg').addEventListener('click', () => {
@@ -174,8 +176,10 @@ async function withImages(cfg, log) {
 
 let busy = false;
 $('send').addEventListener('click', async () => {
+  /* 열쇠만 적고 저장을 안 눌렀으면 여기서 저장한다 */
+  if (!read('blank.blog', null) && $('url').value.trim() && $('key').value.trim()) $('saveCfg').click();
   const cfg = read('blank.blog', null);
-  if (!cfg) { status('아래 "블로그 연결"에 주소와 열쇠를 먼저 저장해 주세요', true); $('url').focus(); return; }
+  if (!cfg) { status('아래 "블로그 연결"에 열쇠(LOG_KEY)를 먼저 적어 주세요', true); $('key').focus(); return; }
   const last = read('blank.last', null);
   if (!last || !last.log || !last.log.msgs.length || busy) return;
   busy = true;
