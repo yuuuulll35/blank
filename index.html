@@ -2669,6 +2669,17 @@ $('htmlBtn').addEventListener('click', async () => {
 /* ---------- 블로그로 올리기 (내 블로그 전용 페이지 me.html 에서) ----------
    지금 고른 대화와 스타일을 이 브라우저에 적어 두면 me.html 이 읽어서 보낸다.
    talk 은 대화 한 벌의 번호 — 대화를 비우면 새 번호라 블로그에도 새 글로 올라간다 */
+/* 글꼴 하나만 불러오는 CSS 주소. 굵기가 하나뿐인 글꼴에 굵기를 붙이면 구글 폰트가 오류를 내서 따로 적는다 */
+const FONT_GOOGLE = {
+  'Gowun Batang': 'Gowun+Batang:wght@400;700', 'Nanum Myeongjo': 'Nanum+Myeongjo:wght@400;700',
+  'Hahmlet': 'Hahmlet:wght@400;700', 'Song Myung': 'Song+Myung', 'Diphylleia': 'Diphylleia',
+  'Gowun Dodum': 'Gowun+Dodum', 'IBM Plex Sans KR': 'IBM+Plex+Sans+KR:wght@400;500;700',
+  'Jua': 'Jua', 'Do Hyeon': 'Do+Hyeon',
+};
+function fontCssUrl(font) {
+  if (font === 'Pretendard Variable') return 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css';
+  return FONT_GOOGLE[font] ? 'https://fonts.googleapis.com/css2?family=' + FONT_GOOGLE[font] + '&display=swap' : '';
+}
 function exportPayload() {
   const sel = state.msgs.filter(m => m.sel);
   const msgs = sel.map(m => {
@@ -2680,10 +2691,15 @@ function exportPayload() {
   const av = {};
   for (const [name, a] of Object.entries(avatars)) if (used.has(name) && a && a.img) av[name] = smallAvatar(a.img);
   const keys = ['font','size','width','bg','ink','acc','hlc','showNames','chatAlign','bubble','narrAlign',
-                'quoteAcc','justify','lineGap','paraGap','narrGap','srcAlign','srcAccent','srcMark'];
+                'quoteAcc','justify','lineGap','paraGap','narrGap','srcAlign','srcAccent','srcMark',
+                'bgClear','fluid','frame','theme'];
   const style = { bgPic: bgImg && bgPic ? bgPic : '' }; for (const k of keys) style[k] = st[k];
+  /* 블로그가 글꼴을 직접 불러올 수 있게 주소와 대체 글꼴까지 함께 보낸다 */
+  style.fontCss = fontCssUrl(st.font);
+  style.fontFamily = `'${st.font}', ${FONT_FALLBACK[st.font] || 'sans-serif'}`;
+  /* html: 'HTML 복사'와 같은 완성본. 블로그가 그대로 넣으면 미리보기와 똑같이 보인다 */
   return { title: st.title, sub: st.sub, head: st.head, source: st.source,
-           mode: st.mode, book: st.book, style, msgs, avatars: av };
+           mode: st.mode, book: st.book, style, msgs, avatars: av, html: exportHtml() };
 }
 function talkId() {
   let id = '';
