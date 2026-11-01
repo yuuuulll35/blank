@@ -254,6 +254,7 @@ details.cast > summary::-webkit-details-marker{display:none}
 }
 .chip.char{background:var(--chip-char)} .chip.me{background:var(--chip-me)} .chip.narr{background:var(--chip-narr)}
 .msg{background:var(--panel)}
+.msg:not(.open):not(.flash){content-visibility:auto; contain-intrinsic-size:auto 64px}
 .msg-ta{
   width:100%; border:1px solid var(--line); border-radius:8px; background:var(--panel2);
   padding:10px 12px; resize:vertical; overflow:hidden; line-height:1.8; font-size:14px; min-height:140px;
@@ -419,7 +420,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
   opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
 }
 #snack.on{opacity:1; transform:translate(-50%,0)}
-#undoDel[hidden], #mergeRange[hidden]{display:none}
+#undoDel[hidden], #mergeRange[hidden], #blogBtn[hidden]{display:none}
 #bulkCast{width:auto; padding:5px 8px; font-size:12.5px}
 .ins.speaker .ins-menu{justify-content:flex-start; padding:8px 0 2px}
 .msg-pic{display:block; max-width:100%; max-height:120px; border-radius:6px}
@@ -624,6 +625,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     <div id="renderBusy" role="status" hidden><i></i>미리보기 그리는 중…</div>
     <div class="row" style="margin:0">
       <button class="btn" id="draftBtn" title="지금 대화와 입력칸 내용을 저장해요. 새로고침하면 불러올지 물어봐요">임시저장</button>
+      <button class="btn" id="blogBtn" title="지금 글을 블로그 올리기 화면으로 넘겨요" hidden>블로그로</button>
       <button class="btn" id="saveBtn">이미지 저장</button>
       <button class="btn primary" id="htmlBtn" title="티스토리·네이버 블로그 등 글쓰기 화면에 붙여넣을 수 있게 지금 모양 그대로 HTML로 복사">HTML 복사</button>
       <button class="btn icon" id="sideToggle" title="사이드바 접기" aria-label="사이드바 접기" aria-expanded="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.8" y="2.6" width="12.4" height="10.8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.6v10.8" stroke="currentColor" stroke-width="1.5"/></svg></button>
@@ -898,7 +900,6 @@ function mergeSpan(a, b, keepOpen) {
   caretAt = keepOpen ? seam : null;
   rangeClear();
   renderList(); renderCardSoon();
-  snack('문단을 합쳤어요. [되돌리기]나 Ctrl+Z로 다시 나눌 수 있어요');
 }
 const mergeAt = (at, keepOpen) => mergeSpan(at - 1, at, keepOpen);
 /* Shift+클릭으로 합칠 범위를 잡는다. 카드에 넣는 체크와는 따로 논다 */
@@ -973,33 +974,31 @@ function insGap(at, pinned) {
   btn.addEventListener('click', () => {
     const was = gap.classList.contains('open');
     closeIns();
-    gap.classList.toggle('open', !was);
+    if (!was) gap.show();
   });
   const menu = document.createElement('div');
   menu.className = 'ins-menu';
-  const chip = (label, c) => {
-    const b = document.createElement('button');
-    b.className = 'btn'; b.textContent = label;
-    b.addEventListener('click', () => addMsgAt(at, c));
-    menu.append(b);
+  /* 문단마다 버튼을 만들면 긴 글에서 무거워서, 펼칠 때 만든다 */
+  gap.show = () => {
+    gap.classList.add('open');
+    if (menu.childElementCount) return;
+    const add = (label, fn, cls) => {
+      const b = document.createElement('button');
+      b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label;
+      b.addEventListener('click', fn);
+      menu.append(b);
+      return b;
+    };
+    add('나레이션', () => addMsgAt(at, null));
+    (st.cast || []).forEach(c => add(castLabel(c), () => addMsgAt(at, c)));
+    /* 삽화는 내 브라우저에서만 넣는다. HTML 복사와 블로그 올리기에만 쓰인다 */
+    if (isMe) add('이미지', () => { picAt = at; $('picFile').click(); });
+    if (at > 0 && at < state.msgs.length && !state.msgs[at - 1].pic && !state.msgs[at].pic) {
+      add('위아래 합치기', () => mergeAt(at), 'ghost').title = '위 문단 뒤에 아래 문단을 이어 붙여요. 화자는 위 문단을 따라요';
+    }
   };
-  chip('나레이션', null);
-  (st.cast || []).forEach(c => chip(castLabel(c), c));
-  /* 삽화는 내 브라우저에서만 넣는다. HTML 복사와 블로그 올리기에만 쓰인다 */
-  if (isMe) {
-    const picBtn = document.createElement('button');
-    picBtn.className = 'btn'; picBtn.textContent = '이미지';
-    picBtn.addEventListener('click', () => { picAt = at; $('picFile').click(); });
-    menu.append(picBtn);
-  }
-  if (at > 0 && at < state.msgs.length && !state.msgs[at - 1].pic && !state.msgs[at].pic) {
-    const join = document.createElement('button');
-    join.className = 'btn ghost'; join.textContent = '위아래 합치기';
-    join.title = '위 문단 뒤에 아래 문단을 이어 붙여요. 화자는 위 문단을 따라요';
-    join.addEventListener('click', () => mergeAt(at));
-    menu.append(join);
-  }
   gap.append(btn, menu);
+  if (pinned) gap.show();
   return gap;
 }
 function renderList() {
@@ -2186,7 +2185,6 @@ async function breathe() {
 /* 편집 탭에서는 보이지 않으니 그리지 않는다. 저장할 때만 force.
    새 요청이 오면 진행 중인 작업은 false 를 돌려주고 멈춘다 */
 async function renderCard(force) {
-  saveForBlog();
   if (!force && $('prevPane').hidden) return;
   const job = ++renderJob;
   clearTimeout(busyTimer);
@@ -2475,7 +2473,12 @@ function picHtml(msg) {
   return `<img src="${c.toDataURL('image/webp', 0.8)}" alt="" style="display:block;width:100%;height:auto;margin:1.4em 0;border-radius:6px">`;
 }
 /* 프로필 사진은 512px PNG 라 무겁다. 내보낼 때만 작게 줄인다 */
+const smallAvatars = new WeakMap();
 function smallAvatar(img) {
+  if (!smallAvatars.has(img)) smallAvatars.set(img, encodeAvatar(img));
+  return smallAvatars.get(img);
+}
+function encodeAvatar(img) {
   const c = document.createElement('canvas');
   c.width = c.height = 160;
   c.getContext('2d').drawImage(img, 0, 0, 160, 160);
@@ -2521,10 +2524,12 @@ function talkId() {
   if (!id) { id = Math.random().toString(36).slice(2, 10); try { localStorage.setItem('blank.talk', id); } catch (e) {} }
   return id;
 }
-function saveForBlog() {
+$('blogBtn').hidden = !isMe;
+$('blogBtn').addEventListener('click', () => {
   try { localStorage.setItem('blank.last', JSON.stringify({ talk: talkId(), at: Date.now(), log: exportPayload() })); }
-  catch (e) { snack('글이 너무 길어 블로그용 임시 저장을 못 했어요'); }
-}
+  catch (e) { snack('글이 너무 길어 블로그로 넘기지 못했어요'); return; }
+  window.open('me.html', 'blank-me');
+});
 
 $('modalClose').addEventListener('click', () => $('modal').classList.remove('open'));
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.remove('open'); });
@@ -3170,7 +3175,7 @@ $('bgFile').addEventListener('change', e => {
     const img = new Image();
     img.onload = async () => {
       bgImg = img; syncControls(); renderCardSoon();
-      try { bgPic = await addPic(file); saveForBlog(); } catch (err) { bgPic = null; }
+      try { bgPic = await addPic(file); } catch (err) { bgPic = null; }
     };
     img.src = rd.result;
   };
@@ -3498,6 +3503,33 @@ function parseExtension(raw) {
       }));
   } catch (e) { return null; }
 }
+/* 일반 글과 발췌 수집기 JSON이 섞여 있어도 앞뒤 순서대로 각각 읽는다 */
+function jsonEnd(raw, start) {
+  let depth = 0, str = false;
+  for (let i = start; i < raw.length; i++) {
+    const c = raw[i];
+    if (str) { if (c === '\\') i++; else if (c === '"') str = false; }
+    else if (c === '"') str = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+function parseMixed(raw) {
+  const out = [], text = s => { if (s.trim()) out.push(...parseRaw(s, st.myName, st.charName)); };
+  const re = /\{\s*"/g;
+  let last = 0, m;
+  while ((m = re.exec(raw))) {
+    const end = jsonEnd(raw, m.index);
+    const msgs = end > 0 && parseExtension(raw.slice(m.index, end));
+    if (!msgs) continue;
+    text(raw.slice(last, m.index));
+    out.push(...msgs);
+    last = re.lastIndex = end;
+  }
+  text(raw.slice(last));
+  return out;
+}
 
 let lastRaw = '';
 /* 입력칸은 처음 데이터를 넣는 곳이고 편집 목록은 따로다. 입력칸이 바뀌어 적용하면 목록을 새로 만든다 */
@@ -3505,7 +3537,7 @@ async function applyRaw() {
   const raw = $('raw').value;
   if (!raw.trim()) { snack('붙여넣은 대화가 없어요'); return; }
   if (raw === lastRaw && state.msgs.length) { snack('바뀐 내용이 없어요'); return; }
-  const parsed = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
+  const parsed = attachTranslations(parseMixed(raw));
   if (!parsed.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
   if (state.msgs.length && !await askBox('입력칸 내용으로 새로 적용할까요?', '지금까지 편집한 내용은 모두 사라져요.', [['취소', false], ['적용하기', true, 'primary']])) return;
   setUndo(null);
@@ -3667,7 +3699,7 @@ const TOUR = [
     text: '자주 쓰는 인물은 별을 눌러 보관함에 저장해요. 이름·사진·말풍선 색이 함께 남고, 보관함에서 누르면 등장인물에 바로 들어가요.' },
   { el: () => $('list'), prep() { setTab('edit'); $('castLib').open = false; openId = null; renderList(); },
     text: '체크한 문단만 카드에 들어가요. 색 칩을 눌러 화자를 고르고, 위의 [화자 일괄 변경]으로 체크한 문단을 한 번에 바꿔요. 작업을 남기려면 위의 [임시저장]을 눌러요.' },
-  { el: () => document.querySelectorAll('#list .ins')[1], prep() { setTab('edit'); closeIns(); const g = document.querySelectorAll('#list .ins')[1]; if (g) g.classList.add('open'); },
+  { el: () => document.querySelectorAll('#list .ins')[1], prep() { setTab('edit'); closeIns(); const g = document.querySelectorAll('#list .ins')[1]; if (g) g.show(); },
     text: '문단 사이의 ＋를 누르면 그 자리에 새 문단을 넣고, 위아래 문단을 합칠 수 있어요. 잘못 지우거나 합쳤다면 [되돌리기]로 살려요.' },
   { el: () => document.querySelector('.msg-tools'), prep() { setTab('edit'); const m = state.msgs.find(x => x.role !== 'narr') || state.msgs[0]; if (m) { openId = m.id; renderList(); } },
     text: '펼친 문단에서 글자를 고르고 형광펜·굵게·기울임을 넣어요. 긴 문단은 [여기서 나누기]로 쪼개요. [완료]를 누르면 접혀요.' },

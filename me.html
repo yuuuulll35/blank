@@ -93,7 +93,7 @@ function show() {
   if (!log || !log.msgs || !log.msgs.length) {
     const p = document.createElement('p');
     p.className = 'empty';
-    p.textContent = 'BLANK에서 대화를 넣고 문단을 고르면 여기에 나타나요. (같은 브라우저에서 열어야 해요)';
+    p.textContent = 'BLANK에서 [블로그로] 버튼을 누르면 여기에 나타나요. (같은 브라우저에서 열어야 해요)';
     box.append(p);
     $('send').disabled = true;
     $('openLog').hidden = true;
