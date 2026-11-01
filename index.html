@@ -227,7 +227,6 @@ details.cast > summary::-webkit-details-marker{display:none}
 .cast-star svg{fill:none; stroke:currentColor; stroke-width:2.6; stroke-linejoin:round}
 .cast-star.on svg{fill:currentColor}
 .cast-star:hover:not(:disabled), .cast-star.on{color:var(--accent)}
-.cast-star.stale{opacity:.5}
 .cast-star:disabled{opacity:.3; cursor:default}
 #castLib{margin-top:10px}
 #castLibBody{padding-top:8px}
@@ -292,6 +291,12 @@ details.cast > summary::-webkit-details-marker{display:none}
 .seg button:hover{border-color:var(--accent); color:var(--ink)}
 .seg button.on{background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:700}
 .swatches{display:flex; gap:6px; flex-wrap:wrap}
+.sw-group{margin:8px 0 5px; font-size:11px; color:var(--muted)}
+.sw-group:first-child{margin-top:0}
+.bubble-row{display:flex; align-items:center; gap:8px; min-height:30px}
+.bubble-row input{flex:none; width:34px; height:24px; padding:0; border:1px solid var(--line); border-radius:6px; background:none; cursor:pointer}
+.bubble-row span{flex:1; min-width:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+#grpSrc.dis{opacity:.45; pointer-events:none}
 .sw{width:30px; height:30px; border-radius:50%; border:2px solid var(--line); padding:0}
 .sw.on{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft)}
 .pickers{display:flex; gap:14px; flex-wrap:wrap}
@@ -454,8 +459,13 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
 
     <div class="sec">
-      <div class="sec-title">색</div>
-      <div class="swatches" id="swatches"></div>
+      <div class="sec-title">색 <span class="sec-note" id="themeName"></span></div>
+      <div id="swatches"></div>
+    </div>
+
+    <div class="sec" id="bubbleSec" hidden>
+      <div class="sec-title">말풍선 색 <span class="sec-note">인물별 · 고르면 미리보기에 바로 보여요</span></div>
+      <div id="bubbleList"></div>
     </div>
 
     <div class="sec">
@@ -539,7 +549,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </details>
 
     <details class="more" id="grpSrc">
-      <summary>출처 꾸미기</summary>
+      <summary>출처 꾸미기 <span class="sum-val" id="grpSrcNote">출처를 적으면 쓸 수 있어요</span></summary>
       <div class="ctrl" id="rowSrcMark"><span>출처 앞 표시</span>
         <div class="seg" id="srcMarkSeg">
           <button data-sm="none" class="on">없음</button>
@@ -692,14 +702,30 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 /* ---------- 상태 ---------- */
 const state = { msgs: [] };
 const PRESETS = [
-  { key:'blog',  name:'블로그', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E' },   /* 블로그 로그 종이색 */
-  { key:'paper', name:'백지',  bg:'#FAF9F6', ink:'#2B2A33', acc:'#A64B5E' },
-  { key:'hanji', name:'미색',  bg:'#F4EEE2', ink:'#3A3226', acc:'#8A5A2B' },
-  { key:'ink',   name:'먹',    bg:'#1E1D24', ink:'#E7E4EF', acc:'#C98A97' },
-  { key:'night', name:'밤',    bg:'#171C2A', ink:'#DCE2F0', acc:'#7E96D8' },
-  { key:'blush', name:'분첩',  bg:'#F7EDF0', ink:'#443037', acc:'#B04A6E' },
-  { key:'purple',name:'보라',  bg:'#6C63D8', ink:'#FFFFFF', acc:'#A85BC0' },
-  { key:'dawn',  name:'새벽',  bg:'#2E3A5C', ink:'#E9E9F2', acc:'#7C5CA8' },
+  { key:'blog',  group:'종이', name:'블로그', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E' },   /* 블로그 로그 종이색 */
+  { key:'paper', group:'종이', name:'백지',  bg:'#FAF9F6', ink:'#2B2A33', acc:'#A64B5E' },
+  { key:'hanji', group:'종이', name:'미색',  bg:'#F4EEE2', ink:'#3A3226', acc:'#8A5A2B' },
+  { key:'sepia', group:'종이', name:'세피아', bg:'#F4ECD8', ink:'#4F3B2C', acc:'#A0522D' },
+  { key:'solar', group:'종이', name:'솔라', bg:'#FDF6E3', ink:'#3F5159', acc:'#2A7F9E' },
+  { key:'mono',  group:'종이', name:'회색지', bg:'#ECECEA', ink:'#26272B', acc:'#55585F' },
+  { key:'blush', group:'파스텔', name:'분첩',  bg:'#F7EDF0', ink:'#443037', acc:'#B04A6E' },
+  { key:'peach', group:'파스텔', name:'살구', bg:'#FBE9E0', ink:'#4A2F2A', acc:'#C9542D' },
+  { key:'butter',group:'파스텔', name:'버터', bg:'#FBF3C9', ink:'#46401F', acc:'#A87A12' },
+  { key:'sage',  group:'파스텔', name:'세이지', bg:'#E5ECDF', ink:'#2F3A2E', acc:'#4F7A5B' },
+  { key:'sky',   group:'파스텔', name:'하늘', bg:'#E3EDF6', ink:'#26323F', acc:'#3A6EA5' },
+  { key:'lilac', group:'파스텔', name:'라일락', bg:'#EEE8F6', ink:'#352C45', acc:'#7A5BA6' },
+  { key:'ink',   group:'어두운', name:'먹',    bg:'#1E1D24', ink:'#E7E4EF', acc:'#C98A97' },
+  { key:'night', group:'어두운', name:'밤',    bg:'#171C2A', ink:'#DCE2F0', acc:'#7E96D8' },
+  { key:'nord',  group:'어두운', name:'북극', bg:'#2E3440', ink:'#ECEFF4', acc:'#88C0D0' },
+  { key:'mocha', group:'어두운', name:'모카', bg:'#2A211C', ink:'#EADFD3', acc:'#C98F5A' },
+  { key:'forest',group:'어두운', name:'숲',   bg:'#1F2A24', ink:'#DDE5DC', acc:'#7FB38E' },
+  { key:'wine',  group:'어두운', name:'와인', bg:'#2B1B22', ink:'#F0E3E6', acc:'#D9798F' },
+  { key:'purple',group:'선명한', name:'보라',  bg:'#6C63D8', ink:'#FFFFFF', acc:'#A85BC0' },
+  { key:'dawn',  group:'선명한', name:'새벽',  bg:'#2E3A5C', ink:'#E9E9F2', acc:'#7C5CA8' },
+  { key:'dracula',group:'선명한', name:'드라큘라', bg:'#282A36', ink:'#F8F8F2', acc:'#BD93F9' },
+  { key:'teal',  group:'선명한', name:'청록', bg:'#0F4C4F', ink:'#EAF6F4', acc:'#F2A65A' },
+  { key:'crimson',group:'선명한', name:'홍',  bg:'#7A1F2E', ink:'#FBEDEA', acc:'#F2C14E' },
+  { key:'navy',  group:'선명한', name:'남색', bg:'#14306B', ink:'#EEF2FB', acc:'#F4B6C2' },
 ];
 const ST_DEFAULT = Object.freeze({
   mode:'book', font:'Gowun Batang', size:17, width:640,
@@ -2582,6 +2608,7 @@ function avDb() {
   return avConn;
 }
 async function saveAvatars() {
+  libSync();
   try {
     const db = await avDb();
     const store = db.transaction('avatars', 'readwrite').objectStore('avatars');
@@ -2701,6 +2728,23 @@ async function libWrite(fn) {
 }
 const libItem = c => ({ name: c.name, role: c.role, color: c.color, src: avatars[c.name] ? avatars[c.name].src : '' });
 const libSame = (a, b) => a.role === b.role && a.color === b.color && a.src === b.src;
+/* 별을 켠 인물은 이름·역할·색·사진이 바뀔 때마다 보관함에 저절로 반영한다 */
+let libReady = false;
+function libSync() {
+  if (!libReady) return;
+  for (const c of st.cast || []) {
+    const i = library.findIndex(x => x.name === c.name);
+    if (i < 0 || libSame(library[i], libItem(c))) continue;
+    const item = library[i] = libItem(c);
+    libWrite(s => s.put(item, item.name));
+  }
+}
+function libRename(old, name) {
+  const item = library.find(x => x.name === old);
+  if (!item || !name) return;
+  item.name = name;
+  libWrite(s => { s.delete(old); s.put(item, name); });
+}
 function libKeep(c) {
   const item = libItem(c), i = library.findIndex(x => x.name === c.name);
   if (i < 0) library.push(item); else library[i] = item;
@@ -2781,6 +2825,7 @@ function renameCast(c, v) {
   freezeNames();
   for (const m of state.msgs) if (old && m.name === old) m.name = v;
   if (old && avatars[old]) { if (v) avatars[v] = avatars[old]; delete avatars[old]; }
+  libRename(old, v);
   c.name = v;
   castChanged();
 }
@@ -2837,42 +2882,56 @@ function renderCast() {
       b.addEventListener('click', () => { if (c.role !== r) setCastRole(c, r); });
       role.append(b);
     }
-    const col = document.createElement('label');
-    col.className = 'cast-color'; col.title = '말풍선 색';
-    const ci = document.createElement('input');
-    ci.type = 'color'; ci.value = c.color || defaultBubble(c.role);
-    const isDefault = () => c.color.toLowerCase() === defaultBubble(c.role).toLowerCase();
-    ci.addEventListener('input', () => { c.color = ci.value; persist(); renderCardSoon(); reset.hidden = isDefault(); });
-    const reset = document.createElement('button');
-    reset.className = 'btn ghost cast-reset'; reset.textContent = '기본색'; reset.hidden = isDefault();
-    reset.title = '지금 색 조합 기준 기본 말풍선 색으로';
-    reset.addEventListener('click', () => { c.color = defaultBubble(c.role); persist(); renderCast(); renderCardSoon(); });
-    col.append(ci, Object.assign(document.createElement('span'), { textContent: '말풍선' }));
-    const chat = st.mode === 'chat';
-    col.hidden = !chat; if (!chat) reset.hidden = true;
     const del = document.createElement('button');
     del.className = 'del'; del.textContent = '✕'; del.title = '인물 지우기';
     del.hidden = st.cast.length <= 1;
     del.addEventListener('click', () => removeCast(c));
     const keep = document.createElement('button');
     const kept = library.find(x => x.name === c.name);
-    const same = kept && libSame(kept, libItem(c));
-    keep.className = 'cast-star' + (kept ? ' on' : '') + (kept && !same ? ' stale' : '');
+    keep.className = 'cast-star' + (kept ? ' on' : '');
     keep.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>';
-    keep.title = !c.name ? '이름을 적으면 보관함에 넣을 수 있어요'
-      : same ? '보관함에서 빼기' : kept ? '바뀐 내용으로 보관함 갱신' : '보관함에 넣기';
+    keep.title = !c.name ? '이름을 적으면 보관함에 넣을 수 있어요' : kept ? '보관함에서 빼기' : '보관함에 넣기';
     keep.setAttribute('aria-label', keep.title);
     keep.disabled = !c.name;
-    keep.addEventListener('click', () => { if (same) libRemove(kept); else libKeep(c); });
+    keep.addEventListener('click', () => { if (kept) libRemove(kept); else libKeep(c); });
     if (c.name && avatars[c.name]) {
       const avDel = document.createElement('button');
       avDel.className = 'btn ghost cast-reset'; avDel.textContent = '사진 빼기';
       avDel.addEventListener('click', () => { delete avatars[c.name]; saveAvatars(); renderCast(); renderCardSoon(); if (openId) renderList(); });
-      row.append(keep, av, nm, role, col, reset, avDel, del);
-    } else row.append(keep, av, nm, role, col, reset, del);
+      row.append(keep, av, nm, role, avDel, del);
+    } else row.append(keep, av, nm, role, del);
     box.append(row);
   });
   renderLibrary();
+  renderBubbleList();
+}
+/* 말풍선 색은 미리보기를 보면서 고르도록 스타일 탭에 둔다 */
+function renderBubbleList() {
+  const box = $('bubbleList');
+  box.innerHTML = '';
+  st.cast.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'bubble-row';
+    const ci = document.createElement('input');
+    ci.type = 'color'; ci.value = c.color || defaultBubble(c.role);
+    ci.setAttribute('aria-label', castLabel(c) + ' 말풍선 색');
+    const isDefault = () => c.color.toLowerCase() === defaultBubble(c.role).toLowerCase();
+    const reset = document.createElement('button');
+    reset.className = 'btn ghost cast-reset'; reset.textContent = '기본색'; reset.hidden = isDefault();
+    reset.title = '지금 색 조합 기준 기본 말풍선 색으로';
+    ci.addEventListener('input', () => {
+      c.color = ci.value;
+      libSync(); persist(); renderCardSoon();
+      reset.hidden = isDefault();
+      if ($('prevPane').hidden) setTab('preview');
+    });
+    reset.addEventListener('click', () => {
+      c.color = defaultBubble(c.role);
+      libSync(); persist(); renderBubbleList(); renderCardSoon();
+    });
+    row.append(ci, Object.assign(document.createElement('span'), { textContent: castLabel(c) }), reset);
+    box.append(row);
+  });
 }
 /* 예전 이름 — 목록을 다시 그릴 때마다 불린다 */
 function renderAvatars() { renderCast(); }
@@ -2942,6 +3001,14 @@ function syncControls() {
   $('titleIn').value = st.title; $('sourceIn').value = st.source;
   document.querySelectorAll('.sw').forEach(b =>
     b.classList.toggle('on', b.dataset.key === st.theme));
+  const theme = PRESETS.find(p => p.key === st.theme);
+  $('themeName').textContent = theme ? theme.name : '';
+  $('bubbleSec').hidden = st.mode !== 'chat';
+  const noSrc = !st.source.trim();
+  $('grpSrc').classList.toggle('dis', noSrc);
+  $('grpSrcNote').hidden = !noSrc;
+  $('grpSrc').querySelector('summary').tabIndex = noSrc ? -1 : 0;
+  if (noSrc) $('grpSrc').open = false;
   $('bgClear').hidden = !bgImg;
   $('bgPick').textContent = bgImg ? '다시 선택' : '이미지 선택';
   $('grpDisplay').hidden = !(ui.names || ui.avatars || ui.chat || ui.narr);
@@ -2973,13 +3040,24 @@ function syncControls() {
 }
 function upd(patch) { Object.assign(st, patch); persist(); syncControls(); renderCardSoon(); }
 
-const swBox = $('swatches');
-for (const p of PRESETS) {
-  const b = document.createElement('button');
-  b.className = 'sw'; b.dataset.key = p.key; b.title = p.name;
-  b.style.background = `linear-gradient(135deg, ${p.bg} 55%, ${p.acc} 55%)`;
-  b.addEventListener('click', () => upd({ theme:p.key, bg:p.bg, ink:p.ink, acc:p.acc }));
-  swBox.append(b);
+/* 색 테마를 바꿀 때 기본색을 쓰던 말풍선은 새 테마를 따라가고, 직접 고른 색은 그대로 둔다 */
+function applyTheme(p) {
+  const plain = (st.cast || []).filter(c => c.color && c.color.toLowerCase() === defaultBubble(c.role).toLowerCase());
+  Object.assign(st, { theme:p.key, bg:p.bg, ink:p.ink, acc:p.acc });
+  plain.forEach(c => { c.color = defaultBubble(c.role); });
+  libSync();
+  persist(); syncControls(); renderCardSoon();
+}
+for (const g of [...new Set(PRESETS.map(p => p.group))]) {
+  const box = Object.assign(document.createElement('div'), { className: 'swatches' });
+  for (const p of PRESETS.filter(x => x.group === g)) {
+    const b = document.createElement('button');
+    b.className = 'sw'; b.dataset.key = p.key; b.title = p.name; b.setAttribute('aria-label', p.name);
+    b.style.background = `linear-gradient(135deg, ${p.bg} 55%, ${p.acc} 55%)`;
+    b.addEventListener('click', () => applyTheme(p));
+    box.append(b);
+  }
+  $('swatches').append(Object.assign(document.createElement('div'), { className: 'sw-group', textContent: g }), box);
 }
 $('fontSel').addEventListener('change', e => upd({ font: e.target.value }));
 const userFonts = [];
@@ -3535,7 +3613,13 @@ function setSideOff(off) {
 $('sideToggle').addEventListener('click', () => setSideOff(!document.querySelector('.app-grid').classList.contains('side-off')));
 try { if (localStorage.getItem('blank.sideOff')) setSideOff(true); } catch (e) {}
 
-syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); loadAvatars(); loadLibrary(); loadDraft().then(prunePics);
+syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); loadDraft().then(prunePics);
+Promise.all([loadAvatars(), loadLibrary()]).then(() => { libReady = true; });
+try { if (localStorage.getItem('blank.infoClosed')) $('infoBox').open = false; } catch (e) {}
+$('infoBox').addEventListener('toggle', () => {
+  if (tourIdx >= 0) return;
+  try { localStorage.setItem('blank.infoClosed', $('infoBox').open ? '' : '1'); } catch (e) {}
+});
 $('raw').addEventListener('input', saveDraftSoon);
 addEventListener('pagehide', saveDraft);
 
