@@ -192,7 +192,7 @@ textarea#raw{
 }
 .msg-head{display:flex; gap:8px; align-items:flex-start; cursor:pointer}
 /* 끌어서 순서 바꾸기 손잡이 */
-.msg-grip{flex:none; display:flex; align-items:center; justify-content:center; width:14px; height:var(--line1); margin:0 -4px 0 -4px; padding:0; border:none; background:none; color:var(--muted); cursor:grab; touch-action:none; opacity:.55}
+.msg-grip{flex:none; display:flex; align-items:center; justify-content:center; width:14px; height:var(--line1); margin:0 -4px 0 -4px; padding:0; border:none; background:none; color:var(--muted); cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; opacity:.55}
 .msg-grip:hover{opacity:1; color:var(--ink)}
 .msg-grip svg{fill:currentColor}
 .msg.dragging{opacity:.4}
@@ -1067,6 +1067,7 @@ function gripFor(msg, row) {
   g.className = 'msg-grip'; g.innerHTML = GRIP_SVG;
   g.title = '끌어서 순서 바꾸기'; g.setAttribute('aria-label', '끌어서 순서 바꾸기');
   g.addEventListener('click', e => e.stopPropagation());
+  g.addEventListener('contextmenu', e => e.preventDefault());
   g.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
@@ -1074,19 +1075,25 @@ function gripFor(msg, row) {
   });
   return g;
 }
+let dragEnd = null;
 function dragMsg(msg, row, grip, e0) {
+  if (dragEnd) dragEnd(null);
   const list = $('list');
   const from = state.msgs.indexOf(msg);
   if (from < 0) return;
   const rows = [...list.querySelectorAll(':scope > .msg')];
   const line = Object.assign(document.createElement('div'), { className: 'drop-line' });
+  const pid = e0.pointerId;
   let y = e0.clientY, at = from, started = false, raf = 0;
-  try { grip.setPointerCapture(e0.pointerId); } catch (err) {}
+  try { grip.setPointerCapture(pid); } catch (err) {}
+  /* 놓을 자리: 다른 문단 위에 올리면 그 문단 자리를 차지하고(아래쪽이면 그 뒤, 위쪽이면 그 앞),
+     문단 사이 빈 곳이면 그 사이에 들어간다 */
   const place = () => {
     at = rows.length;
     for (let k = 0; k < rows.length; k++) {
       const r = rows[k].getBoundingClientRect();
-      if (y < r.top + r.height / 2) { at = k; break; }
+      if (y < r.top) { at = k; break; }
+      if (y <= r.bottom) { at = k === from ? from : k > from ? k + 1 : k; break; }
     }
     const ref = rows[at], last = rows[rows.length - 1];
     line.style.top = (ref ? ref.offsetTop - 5 : last.offsetTop + last.offsetHeight + 5) + 'px';
@@ -1100,6 +1107,7 @@ function dragMsg(msg, row, grip, e0) {
     raf = requestAnimationFrame(tick);
   };
   const move = e => {
+    if (e.pointerId !== pid) return;
     y = e.clientY;
     if (!started) {
       if (Math.abs(y - e0.clientY) < 4) return;
@@ -1107,27 +1115,36 @@ function dragMsg(msg, row, grip, e0) {
       row.classList.add('dragging'); document.body.classList.add('drag-on');
       list.append(line); raf = requestAnimationFrame(tick);
     }
+    e.preventDefault();
     place();
   };
-  const end = e => {
-    grip.removeEventListener('pointermove', move);
-    grip.removeEventListener('pointerup', end);
-    grip.removeEventListener('pointercancel', end);
+  const key = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(null); } };
+  /* 창 전체에서 받는다 — 손잡이 밖으로 빠르게 나가거나 포인터 캡처가 풀려도 놓치지 않게 */
+  const finish = e => {
+    if (e && e.pointerId !== pid) return;
+    dragEnd = null;
+    removeEventListener('pointermove', move, true);
+    removeEventListener('pointerup', finish, true);
+    removeEventListener('pointercancel', finish, true);
+    removeEventListener('keydown', key, true);
     cancelAnimationFrame(raf);
     const lineAt = line.offsetTop - list.scrollTop + 5;
     line.remove(); row.classList.remove('dragging'); document.body.classList.remove('drag-on');
-    if (!started || e.type === 'pointercancel') return;
+    if (!started || !e || e.type === 'pointercancel') return;
+    if (e.clientY != null) { y = e.clientY; place(); }
     const to = at > from ? at - 1 : at;
-    if (to === from) return;
+    if (to === from || state.msgs[from] !== msg) return;
     state.msgs.splice(to, 0, ...state.msgs.splice(from, 1));
     setUndo({ moveId: msg.id, i: from });
     rangeClear(); flashId = msg.id;
     anchorTo(msg.id, lineAt);
     renderList(); renderCardSoon();
   };
-  grip.addEventListener('pointermove', move);
-  grip.addEventListener('pointerup', end);
-  grip.addEventListener('pointercancel', end);
+  dragEnd = finish;
+  addEventListener('pointermove', move, { capture: true, passive: false });
+  addEventListener('pointerup', finish, true);
+  addEventListener('pointercancel', finish, true);
+  addEventListener('keydown', key, true);
 }
 function renderList() {
   const list = $('list');
