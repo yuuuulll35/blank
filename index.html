@@ -396,9 +396,11 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 
 
 /* 저장 모달 */
-#modal, #avModal{position:fixed; inset:0; background:rgba(20,18,24,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:9}
-#modal.open, #avModal.open{display:flex}
-#modal .inner, #avModal .inner{background:var(--panel); border-radius:12px; padding:18px; max-width:min(720px,94vw); max-height:90vh; overflow:auto}
+#modal, #avModal, #askModal{position:fixed; inset:0; background:rgba(20,18,24,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:9}
+#modal.open, #avModal.open, #askModal.open{display:flex}
+#askTitle{margin:0 0 14px; font-size:14px; font-weight:700}
+#askBtns{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px}
+#modal .inner, #avModal .inner, #askModal .inner{background:var(--panel); border-radius:12px; padding:18px; max-width:min(720px,94vw); max-height:90vh; overflow:auto}
 #avCv{display:block; margin:0 auto; border-radius:10px; background:var(--panel2); touch-action:none; cursor:grab}
 #modal img{max-width:100%; height:auto; border:1px solid var(--line); border-radius:4px}
 #modal p{margin:10px 0 0; font-size:12.5px; color:var(--muted)}
@@ -441,10 +443,11 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <div class="ctrl" id="rowSource"><span id="sourceLabel">출처 표기</span><input type="text" id="sourceIn" placeholder="카드 맨 아래 작은 글씨 (비우면 생략)"></div>
       <div class="ctrl" id="rowDate"><span>날짜</span><input type="datetime-local" id="dateIn"></div>
     </details>
-    <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요.&#10;· 화자가 틀리게 나뉘면 편집 목록의 색 칩을 눌러 바꿀 수 있어요.&#10;· 적용해도 글은 남아요. 이어서 붙이고 다시 적용하면 새 내용만 추가돼요."></textarea>
+    <textarea id="raw" placeholder="대화를 통째로 붙여넣으세요.&#10;&#10;· 「이름: 내용」 형식이나 이름만 있는 줄을 화자로 인식해요.&#10;· 빈 줄로 문단을 구분해요.&#10;· 화자가 틀리게 나뉘면 편집 목록의 색 칩을 눌러 바꿀 수 있어요.&#10;· 적용해도 글은 남아요. 이어 쓰고 [뒤에 추가]를 누르면 새 내용만 더해져요."></textarea>
     <div class="row">
       <button class="btn icon" id="resetTalk" title="대화 초기화 (대화·제목·출처 지우기, 등장인물은 그대로)" aria-label="대화 초기화"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.8 2.2v2.6h2.6"/></svg></button>
       <button class="btn primary half" id="parseBtn">적용하기</button>
+      <button class="btn" id="appendBtn" title="지금 목록은 두고 입력칸 내용을 뒤에 더해요">뒤에 추가</button>
     </div>
   </section>
 
@@ -664,6 +667,12 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 </div>
 
 
+<div id="askModal" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+  <div class="inner">
+    <p id="askTitle"></p>
+    <div id="askBtns"></div>
+  </div>
+</div>
 <div id="avModal" role="dialog" aria-label="프로필 사진 편집">
   <div class="inner" style="max-width:340px">
     <canvas id="avCv" width="260" height="260"></canvas>
@@ -774,6 +783,21 @@ function displayName(m) {
   return '';
 }
 
+/* 자체 확인창: 버튼 글자가 곧 설명이 되도록 [글자, 돌려줄 값, 모양] 으로 받는다 */
+function askBox(title, btns) {
+  return new Promise(res => {
+    const done = value => { $('askModal').classList.remove('open'); res(value); };
+    $('askTitle').textContent = title;
+    $('askBtns').replaceChildren(...btns.map(([label, value, cls]) => {
+      const b = document.createElement('button');
+      b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label;
+      b.addEventListener('click', () => done(value));
+      return b;
+    }));
+    $('askModal').classList.add('open');
+    $('askBtns').firstChild.focus();
+  });
+}
 /* 스낵바 */
 let snackTimer = null;
 function snack(msg) {
@@ -2677,7 +2701,7 @@ async function loadDraft() {
     const ask = askDb;
     const d = await ask(db.transaction('draft').objectStore('draft').get('current'));
     if (!d) return;
-    if (!confirm('임시저장된 내용이 있습니다. 불러올까요?')) {
+    if (!await askBox('임시저장된 내용이 있어요', [['불러오기', true, 'primary'], ['지우기', false]])) {
       await ask(db.transaction('draft', 'readwrite').objectStore('draft').delete('current'));
       return;
     }
@@ -3465,24 +3489,25 @@ function parseExtension(raw) {
 }
 
 let appliedTexts = [];
-$('parseBtn').addEventListener('click', () => {
+/* 입력칸은 비우지 않는다. [적용하기]는 목록을 새로 만들고, [뒤에 추가]는 지금 목록 뒤에 더한다 */
+async function applyRaw(append) {
   const raw = $('raw').value;
   if (!raw.trim()) { snack('붙여넣은 대화가 없어요'); return; }
   const parsed = attachTranslations(parseExtension(raw) || parseRaw(raw, st.myName, st.charName));
   if (!parsed.length) { snack('대화를 읽지 못했어요. 붙여넣은 내용을 확인해 주세요'); return; }
-  /* 입력칸은 비우지 않는다. 지난번 글 뒤에 이어 쓴 경우에만 새 문단을 더하고,
-     줄이거나 고쳐서 달라졌으면 목록을 교체할지 묻는다 */
   if (!state.msgs.length) appliedTexts = [];
   const keys = parsed.map(m => [m.role, m.name, m.text].join('\0'));
-  let same = 0;
-  while (same < appliedTexts.length && same < keys.length && appliedTexts[same] === keys[same]) same++;
-  if (same === appliedTexts.length && same === keys.length) { snack('지난번과 같은 내용이에요'); return; }
-  const castBefore = st.cast.map(c => c.name);
   let added = parsed;
-  if (same === appliedTexts.length) added = parsed.slice(same);
-  else if (confirm('입력칸 내용이 지난번과 달라졌어요. 편집 목록을 이 내용으로 바꿀까요?\n\n확인: 목록을 새 내용으로 교체\n취소: 지금 목록 뒤에 전부 추가')) {
+  if (append) {
+    /* 지난번 글 끝에 이어 썼으면 새 문단만 더한다 */
+    const same = appliedTexts.filter((k, i) => k === keys[i]).length;
+    if (same === appliedTexts.length && same === keys.length) { snack('지난번과 같은 내용이에요'); return; }
+    if (same === appliedTexts.length) added = parsed.slice(same);
+  } else if (state.msgs.length) {
+    if (!await askBox('지금 목록을 지우고 새로 넣을까요?', [['확인', true, 'primary'], ['취소', false]])) return;
     state.msgs = []; openId = null; rangeClear(); setUndo(null);
   }
+  const castBefore = st.cast.map(c => c.name);
   appliedTexts = keys;
   state.msgs = state.msgs.concat(added);
   autoAddCast();
@@ -3490,7 +3515,9 @@ $('parseBtn').addEventListener('click', () => {
   renderList(); renderCardSoon();
   setTab('prev');
   snack(added.length + '문단을 넣었어요' + (newCast.length ? ' · 새 인물 ' + newCast.join(', ') : ''));
-});
+}
+$('parseBtn').addEventListener('click', () => applyRaw(false));
+$('appendBtn').addEventListener('click', () => applyRaw(true));
 /* 예시 보기: 전체 초기화 후 예시 대화를 넣어 미리보기로 보여준다 */
 $('sampleBtn').addEventListener('click', () => {
   const skip = ['cast', 'myName', 'charName', 'ratioKey', 'ratio', 'pageNum'];
@@ -3630,7 +3657,7 @@ $('draftBtn').addEventListener('click', saveDraft);
 /* ---------- 사용법 안내 ---------- */
 const TOUR = [
   { el: () => $('raw'), prep() { setSide('talk'); setTab('edit'); },
-    text: 'AI 채팅 대화를 통째로 붙여넣고 [적용하기]를 눌러요. 입력칸의 글은 남아서, 이어서 붙이고 다시 적용하면 새 내용만 더해져요. 발췌 수집기로 복사한 내용도 그대로 인식해요.' },
+    text: 'AI 채팅 대화를 통째로 붙여넣고 [적용하기]를 눌러요. 입력칸의 글은 남아서, 이어 쓰고 [뒤에 추가]를 누르면 새 내용만 더해져요. 발췌 수집기로 복사한 내용도 그대로 인식해요.' },
   { el: () => $('infoBox'), prep() { setSide('talk'); $('infoBox').open = true; },
     text: '카드에 넣을 제목과 출처를 적어요. 비워 두면 카드에서 빠져요.' },
   { el: () => $('castBox'), prep() { setTab('edit'); $('castBox').open = true; },
