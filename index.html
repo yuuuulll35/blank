@@ -431,6 +431,9 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     <details class="more">
       <summary>간격 · 폭 · 정렬</summary>
       <div class="ctrl"><span>카드 폭 <b id="widthVal"></b></span><input type="range" id="widthR" min="380" max="900" step="20"></div>
+      <div class="ctrl" title="켜면 HTML 복사 때 카드 폭을 빼서 글 영역 너비에 꽉 차고, 휴대폰에서는 여백도 줄어요. 이미지 저장에는 영향이 없어요"><span>HTML 반응형</span>
+        <label class="toggle"><input type="checkbox" id="fluidChk"></label>
+      </div>
       <div class="ctrl"><span>줄 간격 <b id="lineGapVal"></b></span><input type="range" id="lineGapR" min="70" max="160" step="5"></div>
       <div class="ctrl"><span>문단 간격 <b id="paraGapVal"></b></span><input type="range" id="paraGapR" min="0" max="250" step="10"></div>
       <div class="ctrl" id="rowJustify" hidden><span>양쪽 정렬</span>
@@ -642,7 +645,7 @@ const ST_DEFAULT = Object.freeze({
   theme:'blog', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E',
   showNames:true, title:'', source:'', myName:'', charName:'', frame:24,
   hlc:'#FFE95C', bgClear:false, ratioKey:'free', ratio:0, narrAlign:'left',
-  book:'page', head:'', pageNum:true, justify:false,
+  book:'page', head:'', pageNum:true, justify:false, fluid:false,
   lineGap:1, paraGap:1, srcAlign:'right', srcAccent:false, srcMark:'none',
   sub:'', chatAlign:'sides', bubble:'fill', quoteAcc:false, postDate:'',
 });
@@ -2040,8 +2043,11 @@ function exportHtml() {
   const title = st.title.trim(), sub = (st.sub || '').trim(), src = st.source.trim(), head = (st.head || '').trim();
   const book = st.mode !== 'chat';
   const B = BOOK_SPEC[st.book] ? st.book : 'page', K = BOOK_SPEC[B];
+  const pad = (book ? K.pad : 2.4) + 'em';
   const wrap = css({
-    'max-width': st.width + 'px', margin: '0 auto', padding: (book ? K.pad : 2.4) + 'em',
+    /* 반응형: min() 을 못 읽는 편집기를 위해 일반 여백을 앞에 같이 적는다 */
+    width: st.fluid ? '100%' : '', 'max-width': st.fluid ? '100%' : st.width + 'px', margin: '0 auto',
+    padding: st.fluid ? `${pad};padding:min(${pad},6vw)` : pad,
     background: st.bgClear ? '' : st.bg, color: st.ink, 'font-family': `'${st.font}', ${FONT_FALLBACK[st.font] || 'sans-serif'}`,
     'font-size': st.size + 'px', 'line-height': '1.5', 'word-break': 'keep-all', 'overflow-wrap': 'anywhere',
     'box-sizing': 'border-box', 'text-align': 'left',
@@ -2104,7 +2110,7 @@ function exportHtml() {
       const who = st.showNames && name ? `<div style="font-size:.78em;font-weight:700;line-height:1.2;color:${m(0.2)};margin-bottom:.5em">${escHtml(name)}</div>` : '';
       const img = av ? `<img src="${av}" alt="" width="38" height="38" style="width:2.35em;height:2.35em;border-radius:30%;object-fit:cover;vertical-align:top;margin-${me ? 'left' : 'right'}:.62em">` : '';
       /* 편집기마다 flex 지원이 달라 표 대신 inline-block 으로 줄을 짠다 */
-      const stack = `<div style="display:inline-block;vertical-align:top;max-width:85%;text-align:${me ? 'right' : 'left'}">${who}<div style="${bub}">${runsHtml(stripQuotes(msg.text))}</div></div>`;
+      const stack = `<div style="display:inline-block;vertical-align:top;max-width:85%;${st.fluid && img ? 'max-width:min(85%,calc(100% - 3.1em));' : ''}text-align:${me ? 'right' : 'left'}">${who}<div style="${bub}">${runsHtml(stripQuotes(msg.text))}</div></div>`;
       out.push(`<div style="margin:${top} 0 0;text-align:${me ? 'right' : 'left'}">${me ? stack + img : img + stack}</div>`);
     });
     source();
@@ -2399,7 +2405,7 @@ function syncControls() {
   $('headIn').value = st.head;
   const headPh = isBook ? (ph[2] || '') : (st.mode === 'post' ? '카테고리 (비우면 생략)' : '');
   $('headIn').placeholder = headPh;
-  $('pageNumChk').checked = st.pageNum; $('justifyChk').checked = st.justify;
+  $('pageNumChk').checked = st.pageNum; $('justifyChk').checked = st.justify; $('fluidChk').checked = !!st.fluid;
   $('srcAccentChk').checked = st.srcAccent;
   document.querySelectorAll('#srcAlignSeg button').forEach(b =>
     b.classList.toggle('on', b.dataset.sa === st.srcAlign));
@@ -2524,6 +2530,7 @@ $('srcAlignSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (b) upd({ srcAlign: b.dataset.sa });
 });
 $('justifyChk').addEventListener('change', e => upd({ justify: e.target.checked }));
+$('fluidChk').addEventListener('change', e => upd({ fluid: e.target.checked }));
 $('frameR').addEventListener('input', e => upd({ frame: +e.target.value }));
 $('bgFile').addEventListener('change', e => {
   const file = e.target.files && e.target.files[0];
