@@ -3217,7 +3217,7 @@ $('sampleBtn').addEventListener('click', () => {
   ].join('\n');
   $('parseBtn').click();
 });
-addEventListener('click', e => { if (!e.target.closest('.ins')) closeIns(); });
+addEventListener('click', e => { if (!e.target.closest('.ins, #tour')) closeIns(); });
 /* 문단 밖 빈 곳을 누르면 접는다. 글자를 드래그하다 밖에서 놓아도 닫히지 않게 누르는 순간만 본다 */
 $('editPane').addEventListener('mousedown', e => {
   if (openId && !e.target.closest('.msg, .ins, .cast')) closeEditor();
@@ -3275,13 +3275,17 @@ syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard(); load
 /* ---------- 사용법 안내 ---------- */
 const TOUR = [
   { el: () => $('raw'), prep() { setSide('talk'); setTab('edit'); },
-    text: 'AI 채팅 대화를 통째로 붙여넣고 [적용하기]를 눌러요. 발췌 수집기로 복사한 내용도 그대로 인식해요. 지금은 예시 대화를 넣어 뒀어요.' },
+    text: 'AI 채팅 대화를 통째로 붙여넣고 [적용하기]를 눌러요. 입력칸의 글은 남아서, 이어서 붙이고 다시 적용하면 새 내용만 더해져요. 발췌 수집기로 복사한 내용도 그대로 인식해요.' },
   { el: () => $('infoBox'), prep() { setSide('talk'); $('infoBox').open = true; },
     text: '카드에 넣을 제목과 출처를 적어요. 비워 두면 카드에서 빠져요.' },
   { el: () => $('castBox'), prep() { setTab('edit'); $('castBox').open = true; },
     text: '등장인물이에요. 이름, 사진(동그라미), PC/NPC, 채팅형 말풍선 색을 정해요. 대화를 적용하면 새 화자가 자동으로 추가돼요.' },
-  { el: () => $('list'), prep() { setTab('edit'); openId = null; renderList(); },
-    text: '체크한 문단만 카드에 들어가요. 색 칩을 누르면 화자가 바뀌고, 문단을 누르면 펼쳐져서 고칠 수 있어요. 문단 사이의 ＋로 그 자리에 새 문단을 넣어요.' },
+  { el: () => $('castLib'), prep() { setTab('edit'); $('castBox').open = true; $('castLib').open = true; },
+    text: '자주 쓰는 인물은 별을 눌러 보관함에 저장해요. 이름·사진·말풍선 색이 함께 남고, 보관함에서 누르면 등장인물에 바로 들어가요.' },
+  { el: () => $('list'), prep() { setTab('edit'); $('castLib').open = false; openId = null; renderList(); },
+    text: '체크한 문단만 카드에 들어가요. 색 칩을 누르면 화자가 바뀌고, 문단을 누르면 펼쳐져서 고칠 수 있어요.' },
+  { el: () => document.querySelectorAll('#list .ins')[1], prep() { setTab('edit'); closeIns(); const g = document.querySelectorAll('#list .ins')[1]; if (g) g.classList.add('open'); },
+    text: '문단 사이의 ＋를 누르면 그 자리에 새 문단을 넣거나 위아래 문단을 합칠 수 있어요. 잘못 지우거나 합쳤다면 [되돌리기]로 살려요.' },
   { el: () => document.querySelector('.msg-tools'), prep() { setTab('edit'); const m = state.msgs.find(x => x.role !== 'narr') || state.msgs[0]; if (m) { openId = m.id; renderList(); } },
     text: '펼친 문단에서 글자를 고르고 형광펜·굵게·기울임을 넣어요. 긴 문단은 [여기서 나누기]로 쪼개요. [완료]를 누르면 접혀요.' },
   { el: () => $('looks'), prep() { openId = null; renderList(); setSide('style'); },
