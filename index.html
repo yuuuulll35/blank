@@ -160,7 +160,7 @@ textarea#raw{
 .hint::before{content:'* '}
 
 /* 메시지 목록 */
-#list{flex:1; min-height:0; display:flex; flex-direction:column; overflow-y:auto; padding-right:6px}
+#list{position:relative; flex:1; min-height:0; display:flex; flex-direction:column; overflow-y:auto; padding-right:6px}
 #list.none{flex:none}
 /* 문단 사이 추가: 틈 전체가 눌리는 자리, ＋는 늘 흐리게 보인다 */
 .ins{flex:none; position:relative; display:flex; flex-direction:column; align-items:center}
@@ -191,6 +191,13 @@ textarea#raw{
   border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:var(--panel2); flex:none;
 }
 .msg-head{display:flex; gap:8px; align-items:flex-start; cursor:pointer}
+/* 끌어서 순서 바꾸기 손잡이 */
+.msg-grip{flex:none; display:flex; align-items:center; justify-content:center; width:14px; height:var(--line1); margin:0 -4px 0 -4px; padding:0; border:none; background:none; color:var(--muted); cursor:grab; touch-action:none; opacity:.55}
+.msg-grip:hover{opacity:1; color:var(--ink)}
+.msg-grip svg{fill:currentColor}
+.msg.dragging{opacity:.4}
+body.drag-on, body.drag-on *{cursor:grabbing !important; user-select:none !important}
+.drop-line{position:absolute; left:0; right:6px; height:3px; margin-top:-2px; border-radius:2px; background:var(--accent); pointer-events:none; z-index:3}
 .msg-fold{flex:none; padding:2px 10px; font-size:12px}
 .msg-del{flex:none; padding:5px 10px; font-size:12px; color:var(--muted)}
 .msg-note{flex:1; min-width:0}
@@ -656,10 +663,10 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     <div class="edit-tools">
       <label class="sel-all"><input type="checkbox" id="selAll">전체</label>
       <button class="btn ghost" id="selInv">선택 반전</button>
-      <button class="btn" id="undoDel" title="마지막 삭제·합치기·적용 되돌리기 (Ctrl+Z)" hidden>되돌리기</button>
+      <button class="btn" id="undoDel" title="마지막 삭제·합치기·옮기기·적용 되돌리기 (Ctrl+Z)" hidden>되돌리기</button>
       <button class="btn primary" id="mergeRange" hidden></button>
       <select id="bulkCast" title="체크한 문단(Shift+클릭으로 범위를 잡았으면 그 범위)의 화자를 한 번에 바꿔요"></select>
-      <span class="hint" style="margin:0 0 0 auto">문단 사이 ＋로 추가 · Shift+클릭으로 범위를 잡아 합치기</span>
+      <span class="hint" style="margin:0 0 0 auto">⠿ 끌어서 순서 바꾸기 · 문단 사이 ＋로 추가 · Shift+클릭으로 범위를 잡아 합치기</span>
     </div>
     <div id="list"></div>
     <input type="file" id="picFile" accept="image/*" multiple hidden>
@@ -880,7 +887,15 @@ let undoDel = null;
 function setUndo(u) { undoDel = u; $('undoDel').hidden = !u; }
 function undoDelete() {
   if (!undoDel) return;
-  const { all, msgs, i, nextId, upper, upperText } = undoDel;
+  const { all, msgs, i, nextId, upper, upperText, moveId } = undoDel;
+  if (moveId) {
+    const k = state.msgs.findIndex(m => m.id === moveId);
+    if (k >= 0) state.msgs.splice(i, 0, ...state.msgs.splice(k, 1));
+    setUndo(null); flashId = moveId;
+    renderList(); renderCardSoon();
+    snack('옮기기 전 자리로 되돌렸어요');
+    return;
+  }
   if (all) {
     state.msgs = all; lastRaw = undoDel.raw; setUndo(null);
     renderList(); renderCardSoon();
@@ -1025,6 +1040,73 @@ function insGap(at, pinned) {
   if (pinned) gap.show();
   return gap;
 }
+/* 손잡이를 끌어 문단 순서를 바꾼다. 마우스·터치 모두 포인터 이벤트로 처리한다 */
+const GRIP_SVG = '<svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true"><circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="7" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/></svg>';
+function gripFor(msg, row) {
+  const g = document.createElement('button');
+  g.className = 'msg-grip'; g.innerHTML = GRIP_SVG;
+  g.title = '끌어서 순서 바꾸기'; g.setAttribute('aria-label', '끌어서 순서 바꾸기');
+  g.addEventListener('click', e => e.stopPropagation());
+  g.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    dragMsg(msg, row, g, e);
+  });
+  return g;
+}
+function dragMsg(msg, row, grip, e0) {
+  const list = $('list');
+  const from = state.msgs.indexOf(msg);
+  if (from < 0) return;
+  const rows = [...list.querySelectorAll(':scope > .msg')];
+  const line = Object.assign(document.createElement('div'), { className: 'drop-line' });
+  let y = e0.clientY, at = from, started = false, raf = 0;
+  try { grip.setPointerCapture(e0.pointerId); } catch (err) {}
+  const place = () => {
+    at = rows.length;
+    for (let k = 0; k < rows.length; k++) {
+      const r = rows[k].getBoundingClientRect();
+      if (y < r.top + r.height / 2) { at = k; break; }
+    }
+    const ref = rows[at], last = rows[rows.length - 1];
+    line.style.top = (ref ? ref.offsetTop - 5 : last.offsetTop + last.offsetHeight + 5) + 'px';
+    line.hidden = at === from || at === from + 1;
+  };
+  /* 목록 위아래 끝에 가까이 대고 있으면 저절로 스크롤 */
+  const tick = () => {
+    const r = list.getBoundingClientRect(), edge = 48;
+    const v = y < r.top + edge ? -Math.ceil((r.top + edge - y) / 4) : y > r.bottom - edge ? Math.ceil((y - r.bottom + edge) / 4) : 0;
+    if (v) { list.scrollTop += v; place(); }
+    raf = requestAnimationFrame(tick);
+  };
+  const move = e => {
+    y = e.clientY;
+    if (!started) {
+      if (Math.abs(y - e0.clientY) < 4) return;
+      started = true;
+      row.classList.add('dragging'); document.body.classList.add('drag-on');
+      list.append(line); raf = requestAnimationFrame(tick);
+    }
+    place();
+  };
+  const end = e => {
+    grip.removeEventListener('pointermove', move);
+    grip.removeEventListener('pointerup', end);
+    grip.removeEventListener('pointercancel', end);
+    cancelAnimationFrame(raf);
+    line.remove(); row.classList.remove('dragging'); document.body.classList.remove('drag-on');
+    if (!started || e.type === 'pointercancel') return;
+    const to = at > from ? at - 1 : at;
+    if (to === from) return;
+    state.msgs.splice(to, 0, ...state.msgs.splice(from, 1));
+    setUndo({ moveId: msg.id, i: from });
+    rangeClear(); flashId = msg.id;
+    renderList(); renderCardSoon();
+  };
+  grip.addEventListener('pointermove', move);
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+}
 function renderList() {
   const list = $('list');
   /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
@@ -1092,6 +1174,7 @@ function renderList() {
 
     const head = document.createElement('div');
     head.className = 'msg-head';
+    head.append(gripFor(msg, row));
     const prev = document.createElement('div');
     prev.className = 'msg-prev';
     prev.textContent = chatText(msg).replace(/==|\*\*|__/g, '') || '(빈 문단)';
