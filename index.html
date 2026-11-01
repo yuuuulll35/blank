@@ -158,7 +158,26 @@ textarea#raw{
 .hint::before{content:'* '}
 
 /* 메시지 목록 */
-#list{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding-right:6px}
+#list{flex:1; min-height:0; display:flex; flex-direction:column; overflow-y:auto; padding-right:6px}
+#list.none{flex:none}
+/* 문단 사이 추가: 틈 전체가 눌리는 자리, ＋는 늘 흐리게 보인다 */
+.ins{flex:none; position:relative; display:flex; flex-direction:column; align-items:center}
+.ins-btn{
+  position:relative; width:100%; height:14px; padding:0; border:none; background:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:var(--muted);
+}
+.ins-btn::before{content:''; position:absolute; left:4px; right:4px; top:50%; height:2px; margin-top:-1px; background:var(--accent); opacity:0}
+.ins-btn span{position:relative; padding:0 8px; font-size:13px; font-weight:700; line-height:14px; background:var(--bg); border-radius:7px; opacity:.4}
+.ins-btn:hover::before, .ins-btn:focus-visible::before, .ins.open .ins-btn::before{opacity:1}
+.ins-btn:hover span, .ins-btn:focus-visible span, .ins.open .ins-btn span{opacity:1; color:var(--accent)}
+.ins-btn:focus-visible{outline:none}
+.ins-menu{display:none; flex-wrap:wrap; justify-content:center; gap:6px; width:100%; padding:4px 0 8px}
+.ins.open .ins-menu{display:flex}
+.ins-menu .btn{padding:5px 12px; font-size:12.5px}
+.ins.pin .ins-btn{display:none}
+@media (pointer:coarse){ .ins-btn{height:28px} }
+.msg.flash{animation:msgFlash 1.4s ease-out}
+@keyframes msgFlash{from{box-shadow:0 0 0 3px var(--accent)}to{box-shadow:0 0 0 3px transparent}}
 #list::-webkit-scrollbar{width:6px}
 #list::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
 #list::-webkit-scrollbar-track{background:none}
@@ -170,7 +189,9 @@ textarea#raw{
   border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:var(--panel2); flex:none;
 }
 .msg-head{display:flex; gap:8px; align-items:flex-start; cursor:pointer}
-.msg.open .msg-head{cursor:default}
+.msg-fold{flex:none; padding:2px 10px; font-size:12px}
+.msg-del{flex:none; padding:5px 10px; font-size:12px; color:var(--muted)}
+.msg-note{flex:1; min-width:0}
 .msg:not(.open):hover{border-color:var(--muted)}
 /* 접힌 줄: 두 줄까지 보여주고 나머지는 펼쳐서 */
 .msg-prev{
@@ -369,6 +390,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
   opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
 }
 #snack.on{opacity:1; transform:translate(-50%,0)}
+#undoDel[hidden]{display:none}
 </style>
 
 <div class="app-grid">
@@ -579,15 +601,11 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn ghost" id="selAll">전체 선택</button>
       <button class="btn ghost" id="selNone">전체 해제</button>
       <button class="btn ghost" id="selInv">선택 반전</button>
-      <span class="hint" style="margin:0 0 0 auto">문단을 누르면 펼쳐서 고쳐요 · 체크한 문단만 카드에 들어가요</span>
+      <button class="btn" id="undoDel" title="마지막 삭제·합치기 되돌리기 (Ctrl+Z)" hidden>되돌리기</button>
+      <span class="hint" style="margin:0 0 0 auto">문단을 누르면 펼쳐서 고쳐요 · 문단 사이 ＋로 추가해요</span>
     </div>
     <div id="list"></div>
-    <div id="empty">아직 넣은 대화가 없어요. 오른쪽 '대화 넣기' 탭에 붙여넣거나, <br>아래 버튼으로 직접 추가할 수 있어요.</div>
-    <div class="row" style="margin:0; flex:none">
-      <button class="btn" data-add="narr">＋ 나레이션</button>
-      <button class="btn" data-add="char">＋ NPC 대사</button>
-      <button class="btn" data-add="me">＋ PC 대사</button>
-    </div>
+    <div id="empty">아직 넣은 대화가 없어요. 오른쪽 '대화 넣기' 탭에 붙여넣거나, <br>위 버튼으로 직접 추가할 수 있어요.</div>
   </section>
 
   <section id="prevPane" hidden>
@@ -748,19 +766,88 @@ let lastChecked = -1;
    [완료](또는 Ctrl+Enter·Esc)로 다시 접는다. 한 번에 한 문단만 펼친다 */
 let openId = null;
 function closeEditor() { openId = null; renderList(); }
+/* 문단 삭제 되돌리기: 마지막으로 지운 한 문단만 기억한다 */
+let undoDel = null;
+function setUndo(u) { undoDel = u; $('undoDel').hidden = !u; }
+function undoDelete() {
+  if (!undoDel) return;
+  const { msg, i, nextId, upper, upperText } = undoDel;
+  const at = state.msgs.findIndex(m => m.id === nextId);
+  state.msgs.splice(at < 0 ? Math.min(i, state.msgs.length) : at, 0, msg);
+  if (upper) { upper.text = upperText; openId = null; }
+  setUndo(null);
+  renderList(); renderCardSoon();
+  snack(upper ? '합친 문단을 다시 나눴어요' : '지운 문단을 되돌렸어요');
+}
+/* at 위아래 두 문단을 합친다. 화자와 체크는 위 문단을 따른다 */
+function mergeAt(at) {
+  const upper = state.msgs[at - 1], lower = state.msgs[at], next = state.msgs[at + 1];
+  setUndo({ msg: lower, i: at, nextId: next && next.id, upper, upperText: upper.text });
+  upper.text = [upper.text, lower.text].filter(Boolean).join('\n');
+  state.msgs.splice(at, 1);
+  openId = null; flashId = upper.id;
+  renderList(); renderCardSoon();
+  snack('문단을 합쳤어요. [되돌리기]나 Ctrl+Z로 다시 나눌 수 있어요');
+}
+/* 새 문단은 누른 자리에 들어가 바로 입력 상태로 열린다. 아무것도 안 쓰고 닫으면 저절로 사라진다 */
+let flashId = null;
+function addMsgAt(at, c) {
+  const msg = { id: uid(), role: 'narr', name: '', text: '', sel: true, fresh: true };
+  setSpeaker(msg, c);
+  state.msgs.splice(at, 0, msg);
+  openId = flashId = msg.id;
+  renderList(); renderCardSoon();
+}
+function closeIns() { document.querySelectorAll('.ins.open:not(.pin)').forEach(el => el.classList.remove('open')); }
+function insGap(at, pinned) {
+  const gap = document.createElement('div');
+  gap.className = 'ins' + (pinned ? ' open pin' : '');
+  const btn = document.createElement('button');
+  btn.className = 'ins-btn'; btn.title = '여기에 문단 추가'; btn.setAttribute('aria-label', '여기에 문단 추가');
+  btn.append(Object.assign(document.createElement('span'), { textContent: '＋' }));
+  btn.addEventListener('click', () => {
+    const was = gap.classList.contains('open');
+    closeIns();
+    gap.classList.toggle('open', !was);
+  });
+  const menu = document.createElement('div');
+  menu.className = 'ins-menu';
+  const chip = (label, c) => {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = label;
+    b.addEventListener('click', () => addMsgAt(at, c));
+    menu.append(b);
+  };
+  chip('나레이션', null);
+  (st.cast || []).forEach(c => chip(c.name ? c.name + (c.role === 'me' ? ' (PC)' : '') : (c.role === 'me' ? 'PC' : 'NPC'), c));
+  if (at > 0 && at < state.msgs.length) {
+    const join = document.createElement('button');
+    join.className = 'btn ghost'; join.textContent = '위아래 합치기';
+    join.title = '위 문단 뒤에 아래 문단을 이어 붙여요. 화자는 위 문단을 따라요';
+    join.addEventListener('click', () => mergeAt(at));
+    menu.append(join);
+  }
+  gap.append(btn, menu);
+  return gap;
+}
 function renderList() {
   const list = $('list');
   /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
   const keepScroll = list.scrollTop;
   list.innerHTML = '';
+  const before = state.msgs.length;
+  state.msgs = state.msgs.filter(m => !m.fresh || m.text.trim() || m.id === openId);
+  if (state.msgs.length !== before) renderCardSoon();
+  list.classList.toggle('none', !state.msgs.length);
   $('empty').style.display = state.msgs.length ? 'none' : 'grid';
   renderAvatars();
   if (!state.msgs.some(m => m.id === openId)) openId = null;
   let focusTa = null;
   state.msgs.forEach((msg, i) => {
+    list.append(insGap(i));
     const open = msg.id === openId;
     const row = document.createElement('div');
-    row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '');
+    row.className = 'msg' + (msg.sel ? '' : ' off') + (open ? ' open' : '') + (msg.id === flashId ? ' flash' : '');
 
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = msg.sel;
@@ -798,7 +885,10 @@ function renderList() {
     del.className = 'del'; del.textContent = '✕'; del.title = '삭제';
     del.addEventListener('click', (e) => {
       e.stopPropagation();
+      const next = state.msgs[i + 1];
+      setUndo({ msg, i, nextId: next && next.id });
       state.msgs.splice(i, 1); renderList(); renderCardSoon();
+      snack('문단을 지웠어요. [되돌리기]나 Ctrl+Z로 살릴 수 있어요');
     });
 
     const head = document.createElement('div');
@@ -806,16 +896,24 @@ function renderList() {
     const prev = document.createElement('div');
     prev.className = 'msg-prev';
     prev.textContent = msg.text.replace(/==|\*\*|__/g, '') || '(빈 문단)';
-    head.append(cb, chip, prev, del);
-    row.append(head);
     if (!open) {
+      head.append(cb, chip, prev, del);
+      row.append(head);
       head.title = '눌러서 고치기';
       head.addEventListener('click', () => { openId = msg.id; renderList(); });
       list.append(row);
       return;
     }
 
-    /* ---- 펼친 편집 칸 ---- */
+    /* ---- 펼친 편집 칸 ----
+       ✕ 는 닫기로 오해하기 쉬워 머리에는 접기를 두고, 삭제는 아래로 내린다 */
+    const fold = document.createElement('button');
+    fold.className = 'btn ghost msg-fold'; fold.textContent = '접기';
+    head.append(cb, chip, prev, fold);
+    row.append(head);
+    head.title = '눌러서 접기';
+    head.addEventListener('click', closeEditor);
+    del.className = 'btn ghost msg-del'; del.textContent = '문단 삭제';
     prev.textContent = '';
     const body = document.createElement('div');
     body.className = 'msg-edit';
@@ -854,6 +952,7 @@ function renderList() {
     ta.addEventListener('input', () => { msg.text = ta.value; grow(); renderCardSoon(); });
     ta.addEventListener('keydown', e => {
       if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); closeEditor(); }
+      if (e.key === 'Enter' && e.altKey) { e.preventDefault(); addMsgAt(i + 1, msg.role === 'narr' ? null : castFor(msg)); }
     });
     ta._grow = grow;
     focusTa = ta;
@@ -895,11 +994,13 @@ function renderList() {
     done.className = 'btn primary'; done.textContent = '완료';
     done.title = 'Ctrl+Enter 또는 Esc';
     done.addEventListener('click', closeEditor);
-    acts.append(Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '형광펜·굵게·기울임은 겹쳐 쓸 수 있어요' }), done);
+    acts.append(del, Object.assign(document.createElement('span'), { className: 'msg-note', textContent: '서식은 겹쳐 쓸 수 있어요 · Alt+Enter로 다음 문단 추가' }), done);
     body.append(tools, ta, acts);
     row.append(body);
     list.append(row);
   });
+  list.append(insGap(state.msgs.length, !state.msgs.length));
+  flashId = null;
   requestAnimationFrame(() => {
     list.scrollTop = keepScroll;
     if (focusTa) {
@@ -978,13 +1079,14 @@ function drawSource(ctx, text, x, w, yBase, px, weight) {
   ctx.fillText(text, cx, yBase);
   setLS(ctx, '0px');
 }
+const BUBBLE_R = 1.6;
 function LH(px, mul) { return Math.round(px * mul * st.lineGap); }
 function GAP(px, mul) { return Math.round(px * mul * st.paraGap); }
 
-/* 말풍선 — 알약(반지름 = 높이/2)에서 화자 쪽 위 모서리 하나만 각지게 깎는다.
-   덧붙이는 꼬리가 아니라 모서리 처리라 형태가 깔끔하게 떨어진다 */
-function bubblePath(ctx, x, y, w, h, side) {
-  const r = h / 2;
+/* 말풍선 — 화자 쪽 위 모서리 하나만 각지게 깎는다. 덧붙이는 꼬리가 아니라 모서리 처리라 형태가 깔끔하게 떨어진다.
+   반지름은 글자 크기로 고정: 한 줄이면 알약이 되고, 길어져도 모서리가 커지지 않는다 */
+function bubblePath(ctx, x, y, w, h, side, size) {
+  const r = Math.min(h / 2, size * BUBBLE_R);
   const k = 0;   /* 각진 모서리는 완전히 직각 */
   ctx.beginPath();
   /* roundRect 반지름 순서: 좌상, 우상, 우하, 좌하 */
@@ -1846,7 +1948,7 @@ function drawCard(ctx, measure) {
         const cc = castColorFor(m), ccRgb = cc ? hexRgb(cc) : null;
         if (!plain) {
           ctx.fillStyle = ccRgb ? rgbCss(ccRgb) : (isMe ? rgbCss(bubMe) : rgbCss(bubChar));
-          bubblePath(ctx, bx, y, bw, bh, isMe ? 'right' : 'left'); ctx.fill();
+          bubblePath(ctx, bx, y, bw, bh, isMe ? 'right' : 'left', size); ctx.fill();
         }
         const col = plain ? st.ink : (ccRgb ? textOn(ccRgb) : (isMe ? textOn(bubMe) : st.ink));
         let ty = y + padY + size * 0.86;
@@ -2148,7 +2250,7 @@ function exportHtml() {
         padding: plain ? '0' : '.85em 1.6em',
         background: plain ? '' : (castColorFor(msg) || (me ? st.acc : rgbCss(mix(bg, ink, 0.1)))),
         color: plain ? st.ink : (castColorFor(msg) ? textOn(hexRgb(castColorFor(msg))) : (me ? textOn(acc) : st.ink)),
-        'border-radius': plain ? '' : (me ? '999px 0 999px 999px' : '0 999px 999px 999px'),
+        'border-radius': plain ? '' : (me ? `${BUBBLE_R}em 0 ${BUBBLE_R}em ${BUBBLE_R}em` : `0 ${BUBBLE_R}em ${BUBBLE_R}em ${BUBBLE_R}em`),
       });
       const who = st.showNames && name ? `<div style="font-size:.78em;font-weight:700;line-height:1.2;color:${m(0.2)};margin-bottom:.5em">${escHtml(name)}</div>` : '';
       const img = av ? `<img src="${av}" alt="" width="38" height="38" style="width:2.35em;height:2.35em;border-radius:30%;object-fit:cover;vertical-align:top;margin-${me ? 'left' : 'right'}:.62em">` : '';
@@ -2706,6 +2808,7 @@ const TALK_KEYS = ['title', 'source', 'head', 'sub', 'postDate'];
 /* 대화 쪽만 비운다 — 스타일은 그대로 */
 function clearTalk() {
   state.msgs = [];
+  setUndo(null);
   st.myName = ''; st.charName = ''; st.cast = null;
   TALK_KEYS.forEach(k => st[k] = ST_DEFAULT[k]);
   $('raw').value = '';
@@ -2952,15 +3055,20 @@ $('sampleBtn').addEventListener('click', () => {
   ].join('\n');
   $('parseBtn').click();
 });
-document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
-  const role = b.dataset.add;
-  state.msgs.push({
-    id: uid(), role,
-    name: role === 'me' ? (st.myName || '나') : role === 'char' ? (st.charName || '') : '',
-    text: '내용을 눌러서 입력하세요', sel: true,
-  });
-  renderList(); renderCardSoon();
-}));
+addEventListener('click', e => { if (!e.target.closest('.ins')) closeIns(); });
+/* 문단 밖 빈 곳을 누르면 접는다. 글자를 드래그하다 밖에서 놓아도 닫히지 않게 누르는 순간만 본다 */
+$('editPane').addEventListener('mousedown', e => {
+  if (openId && !e.target.closest('.msg, .ins, .cast')) closeEditor();
+});
+addEventListener('keydown', e => { if (e.key === 'Escape') closeIns(); });
+$('undoDel').addEventListener('click', undoDelete);
+/* 입력칸 안의 Ctrl+Z 는 글자 되돌리기라 건드리지 않는다 */
+addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || !undoDel) return;
+  if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+  e.preventDefault();
+  undoDelete();
+});
 $('selAll').addEventListener('click', () => { state.msgs.forEach(m => m.sel = true); renderList(); renderCardSoon(); });
 $('selNone').addEventListener('click', () => { state.msgs.forEach(m => m.sel = false); renderList(); renderCardSoon(); });
 $('selInv').addEventListener('click', () => { state.msgs.forEach(m => m.sel = !m.sel); renderList(); renderCardSoon(); });
@@ -3011,7 +3119,7 @@ const TOUR = [
   { el: () => $('castBox'), prep() { setTab('edit'); $('castBox').open = true; },
     text: '등장인물이에요. 이름, 사진(동그라미), PC/NPC, 채팅형 말풍선 색을 정해요. 대화를 적용하면 새 화자가 자동으로 추가돼요.' },
   { el: () => $('list'), prep() { setTab('edit'); openId = null; renderList(); },
-    text: '체크한 문단만 카드에 들어가요. 색 칩을 누르면 화자가 바뀌고, 문단을 누르면 펼쳐져서 고칠 수 있어요.' },
+    text: '체크한 문단만 카드에 들어가요. 색 칩을 누르면 화자가 바뀌고, 문단을 누르면 펼쳐져서 고칠 수 있어요. 문단 사이의 ＋로 그 자리에 새 문단을 넣어요.' },
   { el: () => document.querySelector('.msg-tools'), prep() { setTab('edit'); const m = state.msgs.find(x => x.role !== 'narr') || state.msgs[0]; if (m) { openId = m.id; renderList(); } },
     text: '펼친 문단에서 글자를 고르고 형광펜·굵게·기울임을 넣어요. 긴 문단은 [여기서 나누기]로 쪼개요. [완료]를 누르면 접혀요.' },
   { el: () => $('looks'), prep() { openId = null; renderList(); setSide('style'); },
