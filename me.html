@@ -42,6 +42,16 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
 #status{font-size:13px; margin-top:10px; min-height:1.6em}
 #status.err{color:var(--warn)}
 .empty{color:var(--muted)}
+/* 페어 태그: 목록은 블로그(site.config.mjs 의 logTags)에서 받아 온다 */
+#tags{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
+#tags:empty{display:none}
+.tag{display:inline-flex; flex-direction:row; align-items:center; gap:6px; margin:0; padding:5px 11px; border:1px solid var(--line); border-radius:999px; font-size:12.5px; font-weight:650; cursor:pointer; user-select:none}
+.tag input{position:absolute; opacity:0; pointer-events:none}
+.tag i{width:9px; height:9px; border-radius:50%; background:var(--c); box-shadow:0 0 0 1px rgba(127,127,127,.4)}
+.tag:has(input:checked){border-color:var(--ink); background:var(--ink); color:var(--bg)}
+.tag:has(input:focus-visible){outline:2px solid var(--ink); outline-offset:2px}
+#tagNote{font-size:12px; color:var(--muted); margin:-8px 0 12px}
+#tagNote:empty{display:none}
 </style>
 </head>
 <body>
@@ -57,6 +67,9 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
   </section>
 
   <section class="box">
+    <h2>페어 <span style="font-weight:500">여러 개 골라도 돼요</span></h2>
+    <div id="tags"></div>
+    <p id="tagNote"></p>
     <div class="row">
       <button class="btn primary" id="send" disabled>블로그로 올리기</button>
       <a id="openLog" href="#" target="_blank" rel="noopener" hidden>올린 글 보기</a>
@@ -113,6 +126,7 @@ function show() {
   const cfg = read('blank.blog', null);
   $('openLog').hidden = !(id && cfg);
   if (id && cfg) $('openLog').href = `${cfg.url}/blog/log/?id=${encodeURIComponent(id)}`;
+  loadTags();
 }
 
 function loadCfg() {
@@ -124,11 +138,13 @@ $('saveCfg').addEventListener('click', () => {
   const url = $('url').value.trim().replace(/\/+$/, ''), key = $('key').value.trim();
   if (!url || !key) { status('주소와 열쇠를 둘 다 적어 주세요', true); return; }
   write('blank.blog', { url, key });
+  tagsFor = null;
   status('블로그 연결을 저장했어요');
   show();
 });
 $('clearCfg').addEventListener('click', () => {
   try { localStorage.removeItem('blank.blog'); } catch (e) {}
+  tagsFor = null; tagsReady = false; $('tags').replaceChildren(); $('tagNote').textContent = '';
   loadCfg(); status('블로그 연결을 해제했어요'); show();
 });
 
@@ -205,6 +221,39 @@ async function withImages(cfg, log) {
   return { ...log, style, msgs };
 }
 
+/* ---- 페어 태그 ----
+   목록과(같은 글 고치기면) 지금 붙은 태그를 블로그에서 받아 온다. 고른 것은 대화(talk)마다 기억한다 */
+let tagsReady = false, tagsFor = null;
+const tagPicks = () => read('blank.blog.tags', {});
+function pickedTags() { return [...document.querySelectorAll('#tags input:checked')].map(i => i.value); }
+async function loadTags() {
+  const cfg = read('blank.blog', null), last = read('blank.last', null);
+  const talk = last && last.talk, id = talk ? ids()[talk] || '' : '';
+  const key = (cfg && cfg.url) + '|' + talk + '|' + id;
+  if (!cfg || !talk || tagsFor === key) return;
+  tagsFor = key; tagsReady = false;
+  $('tags').replaceChildren(); $('tagNote').textContent = '페어 목록 불러오는 중…';
+  try {
+    const r = await fetch(`${cfg.url}/api/logs/tags${id ? '?id=' + encodeURIComponent(id) : ''}`, { headers: { authorization: 'Bearer ' + cfg.key } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 401 ? '열쇠가 맞지 않아 페어 목록을 못 불러왔어요' : (d.error || `페어 목록을 못 불러왔어요 (${r.status})`));
+    const mine = tagPicks()[talk];
+    const on = new Set(Array.isArray(mine) ? mine : d.selected || []);
+    for (const t of d.tags || []) {
+      const lab = document.createElement('label'); lab.className = 'tag';
+      const cb = Object.assign(document.createElement('input'), { type: 'checkbox', value: t.id, checked: on.has(t.id) });
+      cb.addEventListener('change', () => { const p = tagPicks(); p[talk] = pickedTags(); write('blank.blog.tags', p); });
+      const dot = document.createElement('i'); dot.style.setProperty('--c', t.color || '#999');
+      lab.append(cb, dot, document.createTextNode(t.name));
+      $('tags').append(lab);
+    }
+    tagsReady = true;
+    $('tagNote').textContent = (d.tags || []).length ? '' : '블로그에 등록된 페어가 없어요';
+  } catch (e) {
+    tagsFor = null;
+    $('tagNote').textContent = (e instanceof TypeError ? '블로그에 닿지 못해 페어 목록을 못 불러왔어요' : e.message) + ' — 올리면 기존 태그는 그대로 둬요';
+  }
+}
 let busy = false;
 $('send').addEventListener('click', async () => {
   /* 열쇠만 적고 저장을 안 눌렀으면 여기서 저장한다 */
@@ -226,6 +275,8 @@ $('send').addEventListener('click', async () => {
   });
   try {
     payload = await withImages(cfg, last.log);
+    /* 목록을 받아 왔을 때만 보낸다. 못 받았으면 빼서 블로그가 기존 태그를 그대로 두게 */
+    if (tagsReady) payload.tags = pickedTags();
     let r = id ? await send('PUT', '/api/logs/' + id) : await send('POST', '/api/logs');
     /* 블로그에서 지운 글이면 새로 올린다 */
     if (r.status === 404 && id) { id = ''; r = await send('POST', '/api/logs'); }
