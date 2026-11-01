@@ -43,7 +43,7 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
 #status.err{color:var(--warn)}
 .empty{color:var(--muted)}
 /* 페어 태그: 목록은 블로그(site.config.mjs 의 logTags)에서 받아 온다 */
-#tags{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
+#tags, #cats{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
 #tags:empty{display:none}
 .tag{display:inline-flex; flex-direction:row; align-items:center; gap:6px; margin:0; padding:5px 11px; border:1px solid var(--line); border-radius:999px; font-size:12.5px; font-weight:650; cursor:pointer; user-select:none}
 .tag input{position:absolute; opacity:0; pointer-events:none}
@@ -67,6 +67,11 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
   </section>
 
   <section class="box">
+    <h2>분류</h2>
+    <div id="cats">
+      <label class="tag"><input type="radio" name="cat" value="story" checked>서사</label>
+      <label class="tag"><input type="radio" name="cat" value="ooc">OOC</label>
+    </div>
     <h2>페어 <span style="font-weight:500">여러 개 골라도 돼요</span></h2>
     <div id="tags"></div>
     <p id="tagNote"></p>
@@ -225,6 +230,14 @@ async function withImages(cfg, log) {
    목록과(같은 글 고치기면) 지금 붙은 태그를 블로그에서 받아 온다. 고른 것은 대화(talk)마다 기억한다 */
 let tagsReady = false, tagsFor = null;
 const tagPicks = () => read('blank.blog.tags', {});
+function pickedCat() { return (document.querySelector('input[name="cat"]:checked') || {}).value === 'ooc' ? 'ooc' : 'story'; }
+function setCat(c) { const el = document.querySelector(`input[name="cat"][value="${c === 'ooc' ? 'ooc' : 'story'}"]`); if (el) el.checked = true; }
+let catTouched = false;
+document.querySelectorAll('input[name="cat"]').forEach(r => r.addEventListener('change', () => {
+  catTouched = true;
+  const last = read('blank.last', null); if (!last) return;
+  const m = read('blank.blog.cats', {}); m[last.talk] = pickedCat(); write('blank.blog.cats', m);
+}));
 function pickedTags() { return [...document.querySelectorAll('#tags input:checked')].map(i => i.value); }
 async function loadTags() {
   const cfg = read('blank.blog', null), last = read('blank.last', null);
@@ -237,6 +250,9 @@ async function loadTags() {
     const r = await fetch(`${cfg.url}/api/logs/tags${id ? '?id=' + encodeURIComponent(id) : ''}`, { headers: { authorization: 'Bearer ' + cfg.key } });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(r.status === 401 ? '열쇠가 맞지 않아 페어 목록을 못 불러왔어요' : (d.error || `페어 목록을 못 불러왔어요 (${r.status})`));
+    /* 분류: 이 대화에서 고른 것 → 블로그에 올라가 있는 것 → 서사 */
+    const myCat = read('blank.blog.cats', {})[talk];
+    setCat(myCat || d.cat || 'story');
     const mine = tagPicks()[talk];
     const on = new Set(Array.isArray(mine) ? mine : d.selected || []);
     for (const t of d.tags || []) {
@@ -277,6 +293,8 @@ $('send').addEventListener('click', async () => {
     payload = await withImages(cfg, last.log);
     /* 목록을 받아 왔을 때만 보낸다. 못 받았으면 빼서 블로그가 기존 태그를 그대로 두게 */
     if (tagsReady) payload.tags = pickedTags();
+    /* 블로그에서 분류를 받아 왔거나 직접 골랐을 때만 보낸다 — 아니면 블로그에서 정한 분류를 그대로 둔다 */
+    if (tagsReady || catTouched) payload.cat = pickedCat();
     let r = id ? await send('PUT', '/api/logs/' + id) : await send('POST', '/api/logs');
     /* 블로그에서 지운 글이면 새로 올린다 */
     if (r.status === 404 && id) { id = ''; r = await send('POST', '/api/logs'); }
