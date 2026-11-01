@@ -231,7 +231,6 @@ details.cast > summary::-webkit-details-marker{display:none}
 #castLib{margin-top:10px}
 #castLibBody{padding-top:8px}
 .lib-empty{font-size:11.5px; color:var(--muted); line-height:1.6}
-.lib-list{display:flex; flex-wrap:wrap; gap:6px}
 .lib-chip{display:flex; align-items:center; border:1px solid var(--line); border-radius:999px; background:var(--panel2)}
 .lib-chip.on{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
 .lib-use{display:flex; align-items:center; gap:6px; padding:3px 4px 3px 4px; border:none; background:none; color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer}
@@ -242,6 +241,8 @@ details.cast > summary::-webkit-details-marker{display:none}
 .msg-tools{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
 .msg-tools .btn{padding:5px 12px; font-size:12.5px}
 .msg.off{opacity:.42}
+.sel-all{display:inline-flex; align-items:center; gap:8px; padding:0 8px 0 12px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer}
+.sel-all input{flex:none; width:19px; height:19px; margin:0; cursor:pointer; accent-color:var(--accent)}
 .msg input[type=checkbox]{
   flex:none; width:19px; height:19px; margin:calc((var(--line1) - 19px) / 2) 0 0; cursor:pointer;
   accent-color:var(--accent);
@@ -292,11 +293,17 @@ details.cast > summary::-webkit-details-marker{display:none}
 .seg button:hover{border-color:var(--accent); color:var(--ink)}
 .seg button.on{background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:700}
 .swatches{display:flex; gap:6px; flex-wrap:wrap}
-.sw-group{margin:8px 0 5px; font-size:11px; color:var(--muted)}
-.sw-group:first-child{margin-top:0}
-.bubble-row{display:flex; align-items:center; gap:8px; min-height:30px}
-.bubble-row input{flex:none; width:34px; height:24px; padding:0; border:1px solid var(--line); border-radius:6px; background:none; cursor:pointer}
-.bubble-row span{flex:1; min-width:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.hscroll{display:flex; flex-wrap:nowrap; gap:6px; overflow-x:auto; padding:3px 3px 7px; scrollbar-width:thin; cursor:grab}
+.hscroll > *{flex:none}
+.bubble-names{margin:-3px -3px 6px}
+.bubble-pv{max-width:160px; padding:5px 13px; border:none; border-radius:0 13px 13px 13px; font-size:12.5px; font-weight:600; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.theme-chip{background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:999px}
+.bubble-pv.on{outline:2px solid var(--accent); outline-offset:1px}
+.bubble-grid{display:grid; grid-template-columns:repeat(auto-fill, 30px); gap:7px}
+.bubble-sw{position:relative; display:block; width:100%; aspect-ratio:1; padding:0; border:1px solid var(--line); border-radius:50%; cursor:pointer}
+.bubble-sw.on{outline:2px solid var(--accent); outline-offset:2px}
+.bubble-sw.custom{overflow:hidden; background:conic-gradient(#e5484d, #f5a524, #46a758, #0091ff, #8e4ec6, #e5484d)}
+.bubble-sw.custom input{position:absolute; inset:0; width:100%; height:100%; padding:0; border:none; opacity:0; cursor:pointer}
 #grpSrc.dis{opacity:.45; pointer-events:none}
 .sw{width:30px; height:30px; border-radius:50%; border:2px solid var(--line); padding:0}
 .sw.on{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft)}
@@ -471,7 +478,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
     </div>
 
     <div class="sec" id="bubbleSec" hidden>
-      <div class="sec-title">말풍선 색 <span class="sec-note">인물별 · 고르면 미리보기에 바로 보여요</span></div>
+      <div class="sec-title">말풍선</div>
       <div id="bubbleList"></div>
     </div>
 
@@ -646,8 +653,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <input type="file" id="avFile" accept="image/*" hidden>
     </details>
     <div class="edit-tools">
-      <button class="btn ghost" id="selAll">전체 선택</button>
-      <button class="btn ghost" id="selNone">전체 해제</button>
+      <label class="sel-all"><input type="checkbox" id="selAll">전체</label>
       <button class="btn ghost" id="selInv">선택 반전</button>
       <button class="btn" id="undoDel" title="마지막 삭제·합치기·적용 되돌리기 (Ctrl+Z)" hidden>되돌리기</button>
       <button class="btn primary" id="mergeRange" hidden></button>
@@ -718,30 +724,42 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 /* ---------- 상태 ---------- */
 const state = { msgs: [] };
 const PRESETS = [
-  { key:'blog',  group:'종이', name:'블로그', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E' },   /* 블로그 로그 종이색 */
-  { key:'paper', group:'종이', name:'백지',  bg:'#FAF9F6', ink:'#2B2A33', acc:'#A64B5E' },
-  { key:'hanji', group:'종이', name:'미색',  bg:'#F4EEE2', ink:'#3A3226', acc:'#8A5A2B' },
-  { key:'sepia', group:'종이', name:'세피아', bg:'#F4ECD8', ink:'#4F3B2C', acc:'#A0522D' },
-  { key:'solar', group:'종이', name:'솔라', bg:'#FDF6E3', ink:'#3F5159', acc:'#2A7F9E' },
-  { key:'mono',  group:'종이', name:'회색지', bg:'#ECECEA', ink:'#26272B', acc:'#55585F' },
-  { key:'blush', group:'파스텔', name:'분첩',  bg:'#F7EDF0', ink:'#443037', acc:'#B04A6E' },
-  { key:'peach', group:'파스텔', name:'살구', bg:'#FBE9E0', ink:'#4A2F2A', acc:'#C9542D' },
-  { key:'butter',group:'파스텔', name:'버터', bg:'#FBF3C9', ink:'#46401F', acc:'#A87A12' },
-  { key:'sage',  group:'파스텔', name:'세이지', bg:'#E5ECDF', ink:'#2F3A2E', acc:'#4F7A5B' },
-  { key:'sky',   group:'파스텔', name:'하늘', bg:'#E3EDF6', ink:'#26323F', acc:'#3A6EA5' },
-  { key:'lilac', group:'파스텔', name:'라일락', bg:'#EEE8F6', ink:'#352C45', acc:'#7A5BA6' },
-  { key:'ink',   group:'어두운', name:'먹',    bg:'#1E1D24', ink:'#E7E4EF', acc:'#C98A97' },
-  { key:'night', group:'어두운', name:'밤',    bg:'#171C2A', ink:'#DCE2F0', acc:'#7E96D8' },
-  { key:'nord',  group:'어두운', name:'북극', bg:'#2E3440', ink:'#ECEFF4', acc:'#88C0D0' },
-  { key:'mocha', group:'어두운', name:'모카', bg:'#2A211C', ink:'#EADFD3', acc:'#C98F5A' },
-  { key:'forest',group:'어두운', name:'숲',   bg:'#1F2A24', ink:'#DDE5DC', acc:'#7FB38E' },
-  { key:'wine',  group:'어두운', name:'와인', bg:'#2B1B22', ink:'#F0E3E6', acc:'#D9798F' },
-  { key:'purple',group:'선명한', name:'보라',  bg:'#6C63D8', ink:'#FFFFFF', acc:'#A85BC0' },
-  { key:'dawn',  group:'선명한', name:'새벽',  bg:'#2E3A5C', ink:'#E9E9F2', acc:'#7C5CA8' },
-  { key:'dracula',group:'선명한', name:'드라큘라', bg:'#282A36', ink:'#F8F8F2', acc:'#BD93F9' },
-  { key:'teal',  group:'선명한', name:'청록', bg:'#0F4C4F', ink:'#EAF6F4', acc:'#F2A65A' },
-  { key:'crimson',group:'선명한', name:'홍',  bg:'#7A1F2E', ink:'#FBEDEA', acc:'#F2C14E' },
-  { key:'navy',  group:'선명한', name:'남색', bg:'#14306B', ink:'#EEF2FB', acc:'#F4B6C2' },
+  { key:'blog', group:'밝은', name:'블로그', bg:'#EBE4CB', ink:'#2B2A33', acc:'#A64B5E' },
+  { key:'paper', group:'밝은', name:'백지', bg:'#FFFFFF', ink:'#1C1C1E', acc:'#2F6BFF' },
+  { key:'cream', group:'밝은', name:'크림', bg:'#FFF8E7', ink:'#3B2A1A', acc:'#E8590C' },
+  { key:'mint', group:'밝은', name:'민트', bg:'#DDF6EC', ink:'#123B33', acc:'#00936E' },
+  { key:'sky', group:'밝은', name:'하늘', bg:'#D7EFFF', ink:'#0F2F4A', acc:'#0A6FD6' },
+  { key:'lemon', group:'밝은', name:'레몬', bg:'#FFF3A3', ink:'#3A3300', acc:'#C96F00' },
+  { key:'peach', group:'밝은', name:'피치', bg:'#FFE1D4', ink:'#4A1F14', acc:'#F04A24' },
+  { key:'lilac', group:'밝은', name:'라일락', bg:'#EADFFF', ink:'#2E1A52', acc:'#7A3FF2' },
+  { key:'rose', group:'밝은', name:'장미', bg:'#FFDCE9', ink:'#4A1030', acc:'#DB1F63' },
+  { key:'ink', group:'어두운', name:'먹', bg:'#16161A', ink:'#EDEDF0', acc:'#FF6B6B' },
+  { key:'midnight', group:'어두운', name:'자정', bg:'#0F172A', ink:'#E2E8F0', acc:'#38BDF8' },
+  { key:'forest', group:'어두운', name:'숲', bg:'#0F2A22', ink:'#DDF3E8', acc:'#34D399' },
+  { key:'wine', group:'어두운', name:'와인', bg:'#2A0F1C', ink:'#F6DFE6', acc:'#FB7185' },
+  { key:'plum', group:'어두운', name:'자두', bg:'#211233', ink:'#EADCFB', acc:'#C084FC' },
+  { key:'coffee', group:'어두운', name:'커피', bg:'#2B1D14', ink:'#F1E3D3', acc:'#F59E0B' },
+  { key:'ocean', group:'어두운', name:'심해', bg:'#062C3F', ink:'#D8F1FA', acc:'#22D3EE' },
+  { key:'graphite', group:'어두운', name:'흑연', bg:'#2B2D31', ink:'#ECECEC', acc:'#FACC15' },
+  { key:'neon', group:'어두운', name:'네온', bg:'#0B0B10', ink:'#F4F4F5', acc:'#39FF88' },
+  { key:'cobalt', group:'선명한', name:'코발트', bg:'#1D4ED8', ink:'#FFFFFF', acc:'#FDE047' },
+  { key:'coral', group:'선명한', name:'코럴', bg:'#FF7A66', ink:'#1F0B08', acc:'#FFF1C9' },
+  { key:'amber', group:'선명한', name:'앰버', bg:'#FF8200', ink:'#1F1000', acc:'#3B1C6E' },
+  { key:'lime', group:'선명한', name:'라임', bg:'#C6F135', ink:'#1B2600', acc:'#2B5F00' },
+  { key:'emerald', group:'선명한', name:'에메랄드', bg:'#047857', ink:'#ECFDF5', acc:'#FDE047' },
+  { key:'magenta', group:'선명한', name:'마젠타', bg:'#BE185D', ink:'#FFF1F6', acc:'#FDE68A' },
+  { key:'violet', group:'선명한', name:'바이올렛', bg:'#6D28D9', ink:'#F5F3FF', acc:'#5EEAD4' },
+  { key:'teal', group:'선명한', name:'청록', bg:'#0F766E', ink:'#F0FDFA', acc:'#FCA5A5' },
+  { key:'yellow', group:'선명한', name:'노랑', bg:'#FFD60A', ink:'#1A1600', acc:'#111111' },
+  { key:'sepia', group:'빈티지', name:'세피아', bg:'#F4ECD8', ink:'#4F3B2C', acc:'#A0522D' },
+  { key:'sage', group:'빈티지', name:'세이지', bg:'#DDE5D0', ink:'#2F3A2E', acc:'#5B7F52' },
+  { key:'dusty', group:'빈티지', name:'더스티', bg:'#D8CFC4', ink:'#3A2F2A', acc:'#8C4A3C' },
+  { key:'denim', group:'빈티지', name:'데님', bg:'#C9D6E3', ink:'#1F2D3D', acc:'#2F5D8A' },
+  { key:'mustard', group:'빈티지', name:'머스터드', bg:'#E9C46A', ink:'#2B2004', acc:'#7A3E0C' },
+  { key:'terra', group:'빈티지', name:'테라코타', bg:'#D98E73', ink:'#2A120B', acc:'#5C1F0E' },
+  { key:'olive', group:'빈티지', name:'올리브', bg:'#5F6B3C', ink:'#F3F1E0', acc:'#E9C46A' },
+  { key:'harbor', group:'빈티지', name:'항구', bg:'#14213D', ink:'#F5EFE0', acc:'#FCA311' },
+  { key:'burnt', group:'빈티지', name:'번트', bg:'#B5521B', ink:'#FFF3E8', acc:'#9FD8F5' },
 ];
 const ST_DEFAULT = Object.freeze({
   mode:'book', font:'Gowun Batang', size:17, width:640,
@@ -946,6 +964,11 @@ function speakerMenu(msg, head) {
   head.after(box);
 }
 const castLabel = c => (c.name ? c.name + (c.role === 'me' ? ' (PC)' : '') : (c.role === 'me' ? 'PC' : 'NPC'));
+function syncSelAll() {
+  const on = state.msgs.filter(m => m.sel).length, all = $('selAll');
+  all.checked = !!on && on === state.msgs.length;
+  all.indeterminate = on > 0 && on < state.msgs.length;
+}
 function renderBulkCast() {
   const b = $('bulkCast');
   b.innerHTML = '';
@@ -1015,6 +1038,7 @@ function renderList() {
   if (!state.msgs.some(m => m.id === openId)) openId = null;
   let focusTa = null;
   renderBulkCast();
+  syncSelAll();
   const range = rangeIdx();
   $('mergeRange').hidden = !range || range[0] === range[1];
   if (range) $('mergeRange').textContent = (range[1] - range[0] + 1) + '문단 합치기';
@@ -1040,6 +1064,7 @@ function renderList() {
       msg.sel = cb.checked;
       lastChecked = i;
       row.classList.toggle('off', !msg.sel);
+      syncSelAll();
       renderCardSoon();
     });
 
@@ -2811,8 +2836,34 @@ function libUse(item) {
   img.onerror = fill;
   img.src = item.src;
 }
+/* 칩 줄을 한 줄로 두고 터치 스와이프·마우스 드래그·휠로 옆으로 넘긴다 */
+function hScroll(el, left) {
+  el.classList.add('hscroll');
+  let down = null, moved = false;
+  el.addEventListener('wheel', e => {
+    const room = e.deltaY > 0 ? el.scrollWidth - el.clientWidth - el.scrollLeft : el.scrollLeft;
+    if (room <= 1 || !e.deltaY) return;
+    e.preventDefault();
+    el.scrollLeft += e.deltaY;
+  }, { passive: false });
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') { down = [e.clientX, el.scrollLeft]; moved = false; }
+  });
+  el.addEventListener('pointermove', e => {
+    if (!down) return;
+    const d = e.clientX - down[0];
+    if (Math.abs(d) > 5) moved = true;
+    if (moved) el.scrollLeft = down[1] - d;
+  });
+  const up = () => { down = null; };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointerleave', up);
+  el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  requestAnimationFrame(() => { el.scrollLeft = left || 0; });
+}
 function renderLibrary() {
   const box = $('castLibBody');
+  const left = box.firstChild && box.firstChild.scrollLeft;
   box.innerHTML = '';
   $('castLibCount').textContent = library.length ? library.length + '명' : '자주 쓰는 인물 저장';
   if (!library.length) {
@@ -2840,6 +2891,7 @@ function renderLibrary() {
     wrap.append(chip);
   }
   box.append(wrap);
+  hScroll(wrap, left);
 }
 $('castClear').addEventListener('click', () => {
   if (!confirm('지금 등장인물을 모두 뺄까요? 대사는 나레이션으로 바뀌어요. (보관함은 그대로예요)')) return;
@@ -2945,32 +2997,49 @@ function renderCast() {
   renderBubbleList();
 }
 /* 말풍선 색은 미리보기를 보면서 고르도록 스타일 탭에 둔다 */
+const BUBBLE_SWATCHES = ['#F6C9D0', '#F9D9B8', '#FBEBA8', '#CFE8C6', '#BFE3E6', '#C9D7F5', '#DCCDF2', '#E5DFD6',
+                         '#C2476A', '#D9743A', '#B8912F', '#3F8F6B', '#2F8A94', '#3A6EA5', '#6E56B8', '#3A3A44'];
+/* 인물이 많아도 길어지지 않게 인물은 칩으로 고르고 색판은 하나만 둔다 */
+let bubbleSel = null;
 function renderBubbleList() {
   const box = $('bubbleList');
+  const left = box.firstChild && box.firstChild.scrollLeft;
   box.innerHTML = '';
-  st.cast.forEach(c => {
-    const row = document.createElement('div');
-    row.className = 'bubble-row';
-    const ci = document.createElement('input');
-    ci.type = 'color'; ci.value = c.color || defaultBubble(c.role);
-    ci.setAttribute('aria-label', castLabel(c) + ' 말풍선 색');
-    const isDefault = () => c.color.toLowerCase() === defaultBubble(c.role).toLowerCase();
-    const reset = document.createElement('button');
-    reset.className = 'btn ghost cast-reset'; reset.textContent = '기본색'; reset.hidden = isDefault();
-    reset.title = '지금 색 조합 기준 기본 말풍선 색으로';
-    ci.addEventListener('input', () => {
-      c.color = ci.value;
-      libSync(); persist(); renderCardSoon();
-      reset.hidden = isDefault();
-      if ($('prevPane').hidden) setTab('preview');
-    });
-    reset.addEventListener('click', () => {
-      c.color = defaultBubble(c.role);
-      libSync(); persist(); renderBubbleList(); renderCardSoon();
-    });
-    row.append(ci, Object.assign(document.createElement('span'), { textContent: castLabel(c) }), reset);
-    box.append(row);
+  const c = st.cast.includes(bubbleSel) ? bubbleSel : st.cast[0];
+  const names = Object.assign(document.createElement('div'), { className: 'bubble-names' });
+  st.cast.forEach(x => {
+    const b = document.createElement('button');
+    b.className = 'bubble-pv' + (x === c ? ' on' : '');
+    b.textContent = x.name || castLabel(x);
+    b.style.background = x.color; b.style.color = textOn(hexRgb(x.color));
+    b.addEventListener('click', () => { bubbleSel = x; renderBubbleList(); });
+    names.append(b);
   });
+  const grid = Object.assign(document.createElement('div'), { className: 'bubble-grid' });
+  const ci = document.createElement('input');
+  ci.type = 'color'; ci.value = c.color; ci.setAttribute('aria-label', castLabel(c) + ' 말풍선 색 직접 고르기');
+  const custom = Object.assign(document.createElement('label'), { className: 'bubble-sw custom', title: '직접 고르기' });
+  custom.append(ci);
+  const pick = hex => {
+    c.color = hex;
+    libSync(); persist(); renderCardSoon();
+    const chip = names.querySelector('.on');
+    chip.style.background = hex; chip.style.color = textOn(hexRgb(hex));
+    grid.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c === hex.toLowerCase()));
+    if ($('prevPane').hidden) setTab('preview');
+  };
+  [defaultBubble(c.role), ...BUBBLE_SWATCHES].forEach((hex, i) => {
+    const b = document.createElement('button');
+    b.className = 'bubble-sw' + (hex.toLowerCase() === c.color.toLowerCase() ? ' on' : '');
+    b.style.background = hex; b.dataset.c = hex.toLowerCase();
+    b.title = i ? hex : '테마 기본색'; b.setAttribute('aria-label', b.title);
+    b.addEventListener('click', () => pick(hex));
+    grid.append(b);
+  });
+  grid.append(custom);
+  ci.addEventListener('input', () => pick(ci.value));
+  box.append(names, grid);
+  hScroll(names, left);
 }
 /* 예전 이름 — 목록을 다시 그릴 때마다 불린다 */
 function renderAvatars() { renderCast(); }
@@ -3087,17 +3156,33 @@ function applyTheme(p) {
   libSync();
   persist(); syncControls(); renderCardSoon();
 }
-for (const g of [...new Set(PRESETS.map(p => p.group))]) {
-  const box = Object.assign(document.createElement('div'), { className: 'swatches' });
-  for (const p of PRESETS.filter(x => x.group === g)) {
+/* 색 테마도 말풍선처럼 칩으로 묶음을 고르고 색판 하나만 보여 준다 */
+let themeGroup = null;
+function renderThemes() {
+  const box = $('swatches');
+  const left = box.firstChild && box.firstChild.scrollLeft;
+  box.innerHTML = '';
+  const now = PRESETS.find(p => p.key === st.theme);
+  const group = themeGroup || (now ? now.group : PRESETS[0].group);
+  const chips = Object.assign(document.createElement('div'), { className: 'bubble-names' });
+  for (const g of new Set(PRESETS.map(p => p.group))) {
     const b = document.createElement('button');
-    b.className = 'sw'; b.dataset.key = p.key; b.title = p.name; b.setAttribute('aria-label', p.name);
+    b.className = 'bubble-pv theme-chip' + (g === group ? ' on' : ''); b.textContent = g;
+    b.addEventListener('click', () => { themeGroup = g; renderThemes(); });
+    chips.append(b);
+  }
+  const grid = Object.assign(document.createElement('div'), { className: 'bubble-grid' });
+  for (const p of PRESETS.filter(x => x.group === group)) {
+    const b = document.createElement('button');
+    b.className = 'sw' + (p.key === st.theme ? ' on' : ''); b.dataset.key = p.key; b.title = p.name; b.setAttribute('aria-label', p.name);
     b.style.background = `linear-gradient(135deg, ${p.bg} 55%, ${p.acc} 55%)`;
     b.addEventListener('click', () => applyTheme(p));
-    box.append(b);
+    grid.append(b);
   }
-  $('swatches').append(Object.assign(document.createElement('div'), { className: 'sw-group', textContent: g }), box);
+  box.append(chips, grid);
+  hScroll(chips, left);
 }
+renderThemes();
 $('fontSel').addEventListener('change', e => upd({ font: e.target.value }));
 const userFonts = [];
 $('fontFile').addEventListener('change', async e => {
@@ -3630,8 +3715,7 @@ addEventListener('keydown', e => {
   e.preventDefault();
   undoDelete();
 });
-$('selAll').addEventListener('click', () => { state.msgs.forEach(m => m.sel = true); renderList(); renderCardSoon(); });
-$('selNone').addEventListener('click', () => { state.msgs.forEach(m => m.sel = false); renderList(); renderCardSoon(); });
+$('selAll').addEventListener('change', e => { state.msgs.forEach(m => m.sel = e.target.checked); renderList(); renderCardSoon(); });
 $('selInv').addEventListener('click', () => { state.msgs.forEach(m => m.sel = !m.sel); renderList(); renderCardSoon(); });
 
 /* ---------- 확장/북마클릿 연동: #d=base64url(JSON) ---------- */
