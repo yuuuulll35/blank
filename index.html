@@ -2704,8 +2704,11 @@ function exportPayload() {
   picAsToken = true;
   let html = '';
   try { html = exportHtml(); } finally { picAsToken = false; }
+  /* 프로필 사진 data URL 이 말풍선마다 반복돼 긴 글이면 브라우저 저장 한도를 넘는다 — 한 벌만 따로 두고 표시로 바꾼다 */
+  const dataUrls = [...new Set(html.match(/data:image\/(?:webp|png|jpeg|gif);base64,[A-Za-z0-9+/=]+/g) || [])];
+  dataUrls.forEach((u, k) => { html = html.split(u).join('blank-data:' + k); });
   return { title: st.title, sub: st.sub, head: st.head, source: st.source,
-           mode: st.mode, book: st.book, style, msgs, avatars: av, html };
+           mode: st.mode, book: st.book, style, msgs, avatars: av, html, dataUrls };
 }
 function talkId() {
   let id = '';
