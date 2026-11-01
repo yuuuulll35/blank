@@ -6,6 +6,8 @@ NPC·PC 대사와 나레이션을 붙여 넣어 대화 로그를 한 장의 이�
 
 ## 폰트
 
+글꼴 목록은 `fonts.css` 한 곳에 있다. 블로그(smallroom.site)도 이 파일(`https://yuuuulll35.github.io/blank/fonts.css`)을 불러오므로, 여기서 글꼴을 더하거나 빼면 블로그도 같이 바뀐다.
+
 모든 폰트는 SIL Open Font License 1.1을 따르며, 저장소에 포함되지 않고 CDN에서 불러옵니다.
 
 | 폰트 | 저작권 | 제공 |
