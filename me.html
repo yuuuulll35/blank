@@ -43,7 +43,10 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
 #status.err{color:var(--warn)}
 .empty{color:var(--muted)}
 /* 페어 태그: 목록은 블로그(site.config.mjs 의 logTags)에서 받아 온다 */
-#tags, #cats{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
+#oocPick{display:grid; grid-template-columns:1fr 10rem; gap:8px; margin:0 0 4px}
+#oocPick[hidden], #logOpts[hidden]{display:none}
+select{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel)}
+#dests, #tags, #cats{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
 #tags:empty{display:none}
 .tag{display:inline-flex; flex-direction:row; align-items:center; gap:6px; margin:0; padding:5px 11px; border:1px solid var(--line); border-radius:999px; font-size:12.5px; font-weight:650; cursor:pointer; user-select:none}
 .tag input{position:absolute; opacity:0; pointer-events:none}
@@ -67,6 +70,16 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
   </section>
 
   <section class="box">
+    <h2>올릴 곳</h2>
+    <div id="dests">
+      <label class="tag"><input type="radio" name="dest" value="log" checked>새 로그</label>
+      <label class="tag"><input type="radio" name="dest" value="ooc">OOC 카드 하위 글</label>
+    </div>
+    <div id="oocPick" hidden>
+      <label>OOC 카드<select id="oocSel"></select></label>
+      <label>날짜<input type="date" id="oocDate"></label>
+    </div>
+    <div id="logOpts">
     <h2>분류</h2>
     <div id="cats">
       <label class="tag"><input type="radio" name="cat" value="story" checked>서사</label>
@@ -74,6 +87,7 @@ input{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--l
     </div>
     <h2>페어 <span style="font-weight:500">여러 개 골라도 돼요</span></h2>
     <div id="tags"></div>
+    </div>
     <p id="tagNote"></p>
     <div class="row">
       <button class="btn primary" id="send" disabled>블로그로 올리기</button>
@@ -125,13 +139,45 @@ function show() {
   const pv = document.createElement('div'); pv.className = 'preview';
   pv.textContent = log.msgs.slice(0, 4).map(x => x.pic ? '[이미지]' : x.text.replace(/==|\*\*|__/g, '')).join('\n');
   box.append(t, m, pv);
-  const id = ids()[last.talk];
-  $('send').disabled = false;
-  $('send').textContent = id ? '같은 글 고치기' : '블로그로 올리기';
   const cfg = read('blank.blog', null);
+  const child = childs()[last.talk];
+  if (child && !destTouched) setDest('ooc');
+  $('send').disabled = false;
+  syncDest();
+  const toCard = dest() === 'ooc';
+  const id = toCard ? (child && child.card === $('oocSel').value ? child.card : '') : ids()[last.talk];
   $('openLog').hidden = !(id && cfg);
   if (id && cfg) $('openLog').href = `${cfg.url}/blog/log/?id=${encodeURIComponent(id)}`;
   loadTags();
+}
+/* ---- 올릴 곳: 새 로그 / OOC 카드 하위 글 ----
+   하위 글로 보낸 대화는 (카드, 하위 글 번호)를 기억해 다시 보내면 같은 하위 글을 고친다 */
+const childs = () => read('blank.blog.childs', {});
+let destTouched = false;
+function dest() { return (document.querySelector('input[name="dest"]:checked') || {}).value === 'ooc' ? 'ooc' : 'log'; }
+function setDest(v) { const el = document.querySelector(`input[name="dest"][value="${v}"]`); if (el) el.checked = true; }
+function syncDest() {
+  const toCard = dest() === 'ooc';
+  $('oocPick').hidden = !toCard; $('logOpts').hidden = toCard;
+  const last = read('blank.last', null);
+  if (!last) return;
+  if (!$('oocDate').value) $('oocDate').value = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const child = childs()[last.talk];
+  $('send').textContent = toCard
+    ? (child && child.card === $('oocSel').value ? '같은 하위 글 고치기' : 'OOC 카드에 넣기')
+    : (ids()[last.talk] ? '같은 글 고치기' : '블로그로 올리기');
+}
+document.querySelectorAll('input[name="dest"]').forEach(r => r.addEventListener('change', () => { destTouched = true; show(); }));
+$('oocSel').addEventListener('change', show);
+function fillOocs(list) {
+  const last = read('blank.last', null);
+  const child = last && childs()[last.talk];
+  const keep = $('oocSel').value || (child && child.card) || '';
+  $('oocSel').replaceChildren(...(list.length
+    ? list.map(o => new Option(`${o.title} (글 ${o.n})`, o.id))
+    : [Object.assign(new Option('OOC 카드가 없어요 — 블로그 LOG에서 [+ OOC 카드]로 먼저 만들어 주세요', ''), { disabled: true })]));
+  if (keep && list.some(o => o.id === keep)) $('oocSel').value = keep;
+  syncDest();
 }
 
 function loadCfg() {
@@ -264,6 +310,7 @@ async function loadTags() {
       $('tags').append(lab);
     }
     tagsReady = true;
+    fillOocs(d.oocs || []);
     $('tagNote').textContent = (d.tags || []).length ? '' : '블로그에 등록된 페어가 없어요';
   } catch (e) {
     tagsFor = null;
@@ -290,6 +337,21 @@ $('send').addEventListener('click', async () => {
     body: JSON.stringify(payload),
   });
   try {
+    if (dest() === 'ooc') {
+      const card = $('oocSel').value;
+      if (!card) { status('넣을 OOC 카드를 골라 주세요', true); return; }
+      const cm = childs(), prev = cm[last.talk];
+      const full = await withImages(cfg, last.log);
+      payload = { pid: prev && prev.card === card ? prev.pid : undefined, date: $('oocDate').value, title: full.title || '', html: full.html || '', mode: full.mode };
+      if (!payload.html) { status('이 대화는 하위 글로 보낼 수 없어요 (BLANK를 새로고침한 뒤 다시 [블로그로]를 눌러 주세요)', true); return; }
+      const r = await send('POST', `/api/logs/${encodeURIComponent(card)}/posts`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { status(r.status === 401 ? '열쇠가 맞지 않아요. 아래 "블로그 연결"에서 다시 적어 주세요' : (d.error || `보내지 못했어요 (${r.status})`), true); return; }
+      cm[last.talk] = { card, pid: d.pid }; write('blank.blog.childs', cm);
+      tagsFor = null;
+      status(d.replaced ? 'OOC 카드의 같은 하위 글을 고친 내용으로 바꿨어요' : 'OOC 카드에 하위 글로 넣었어요. 고친 뒤 다시 누르면 같은 하위 글이 바뀌어요');
+      return;
+    }
     payload = await withImages(cfg, last.log);
     /* 목록을 받아 왔을 때만 보낸다. 못 받았으면 빼서 블로그가 기존 태그를 그대로 두게 */
     if (tagsReady) payload.tags = pickedTags();
