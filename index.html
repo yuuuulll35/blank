@@ -220,6 +220,8 @@ details.cast > summary::-webkit-details-marker{display:none}
 #castList{display:flex; flex-direction:column; gap:6px; margin-top:10px; max-height:max(130px, 24vh); overflow-y:auto}
 .cast-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
 .cast-name{flex:1 1 120px; min-width:0; padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel2)}
+/* 바깥 포커스 선이 둥근 칸과 어긋나 괄호처럼 보여서, 칸 테두리 색만 바꾼다 */
+.cast-name:focus, .cast-name:focus-visible{outline:none; border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
 .cast-role{flex:none}
 .cast-role button{padding:4px 11px; font-size:12px}
 .cast-color[hidden]{display:none}
@@ -807,7 +809,8 @@ function fmtStamp(v) {
 }
 /* 카드에 쓰는 이름: 대사에 적힌 이름, 없으면 그 역할의 첫 인물(PC/NPC) 이름 */
 function displayName(m) {
-  if (m.name) return m.name;
+  /* 비운 줄(이름 없음, 예전 이름은 prev)의 대사는 이름 없이 */
+  if (m.name) return st.cast && st.cast.some(c => !c.name && c.prev === m.name) ? '' : m.name;
   if (m.role === 'me') return (st.myName || '').trim();
   if (m.role === 'char') return (st.charName || '').trim();
   return '';
@@ -2807,7 +2810,23 @@ function syncCastNames() {
 function castFor(m) {
   if (m.role === 'narr') return null;
   const n = displayName(m);
-  return st.cast.find(c => n ? c.name === n : c.role === m.role) || null;
+  if (n) return st.cast.find(c => c.name === n) || null;
+  const cleared = m.name && st.cast.find(c => !c.name && c.prev === m.name);
+  return cleared || st.cast.find(c => c.role === m.role) || null;
+}
+/* 비운 줄에 새 이름이 들어오면, 그 줄에 묶여 있던 대사를 새 이름으로 옮긴다 */
+function adoptCleared(c, name) {
+  if (!c.prev) return;
+  for (const m of state.msgs) if (m.name === c.prev) m.name = name;
+  delete c.prev;
+}
+/* 줄 비우기: 이름·사진·말풍선 색만 지운다. 보관함은 그대로, 대사는 이 줄에 묶어 둔다 */
+function clearCast(c) {
+  freezeNames();
+  if (c.name) { c.prev = c.name; delete avatars[c.name]; }
+  c.name = ''; c.color = '';
+  castChanged(); renderCast();
+  snack('이 줄을 비웠어요. 보관함은 그대로예요');
 }
 function setSpeaker(m, c) {
   if (!c) { m.role = 'narr'; m.name = ''; return; }
@@ -2968,12 +2987,6 @@ function libSync() {
     libWrite(s => s.put(item, item.name));
   }
 }
-function libRename(old, name) {
-  const item = library.find(x => x.name === old);
-  if (!item || !name) return;
-  item.name = name;
-  libWrite(s => { s.delete(old); s.put(item, name); });
-}
 function libKeep(c) {
   const item = libItem(c), i = library.findIndex(x => x.name === c.name);
   if (i < 0) library.push(item); else library[i] = item;
@@ -2990,8 +3003,8 @@ function libUse(item) {
   const cur = st.cast.find(c => c.name === item.name);
   if (cur) { if (st.cast.length > 1) removeCast(cur); return; }
   const fill = () => {
-    const empty = st.cast.find(c => !c.name && c.role === item.role);
-    if (empty) Object.assign(empty, { name: item.name, color: item.color });
+    const empty = st.cast.find(c => !c.name && c.role === item.role && c.prev) || st.cast.find(c => !c.name && c.role === item.role);
+    if (empty) { adoptCleared(empty, item.name); Object.assign(empty, { name: item.name, color: item.color }); }
     else st.cast.push({ name: item.name, role: item.role, color: item.color });
     castChanged();
   };
@@ -3080,10 +3093,11 @@ function renameCast(c, v) {
   if (v && st.cast.some(x => x !== c && x.name === v)) { snack('같은 이름의 인물이 이미 있어요'); renderCast(); return; }
   freezeNames();
   for (const m of state.msgs) if (old && m.name === old) m.name = v;
+  if (!old && v) adoptCleared(c, v);
   if (old && avatars[old]) { if (v) avatars[v] = avatars[old]; delete avatars[old]; }
-  libRename(old, v);
+  /* 이름을 바꾸면 다른 인물로 본다 — 보관함 속 원래 인물은 그대로 두고, 별은 새 이름 기준으로 꺼진다 */
   c.name = v;
-  castChanged();
+  castChanged(); renderCast();
 }
 function setCastRole(c, role) {
   freezeNames();
@@ -3093,9 +3107,10 @@ function setCastRole(c, role) {
 }
 function removeCast(c) {
   freezeNames();
-  const n = state.msgs.filter(m => m.role !== 'narr' && c.name && m.name === c.name).length;
-  if (n && !confirm(`「${c.name}」의 대사 ${n}개는 나레이션으로 바뀌어요. 지울까요?`)) return;
-  for (const m of state.msgs) if (c.name && m.name === c.name) { m.role = 'narr'; m.name = ''; }
+  const who = c.name || c.prev;
+  const n = state.msgs.filter(m => m.role !== 'narr' && who && m.name === who).length;
+  if (n && !confirm(`「${c.name || castLabel(c)}」의 대사 ${n}개는 나레이션으로 바뀌어요. 지울까요?`)) return;
+  for (const m of state.msgs) if ((c.name && m.name === c.name) || (!c.name && c.prev && m.name === c.prev)) { m.role = 'narr'; m.name = ''; }
   if (c.name) delete avatars[c.name];
   st.cast.splice(st.cast.indexOf(c), 1);
   castChanged();
@@ -3138,6 +3153,11 @@ function renderCast() {
       b.addEventListener('click', () => { if (c.role !== r) setCastRole(c, r); });
       role.append(b);
     }
+    const clr = document.createElement('button');
+    clr.className = 'btn ghost cast-reset'; clr.textContent = '비우기';
+    clr.title = '이 줄의 이름·사진·말풍선 색만 비워요. 보관함과 대사는 그대로예요';
+    clr.hidden = !c.name;
+    clr.addEventListener('click', () => clearCast(c));
     const del = document.createElement('button');
     del.className = 'del'; del.textContent = '✕'; del.title = '인물 지우기';
     del.hidden = st.cast.length <= 1;
@@ -3154,8 +3174,8 @@ function renderCast() {
       const avDel = document.createElement('button');
       avDel.className = 'btn ghost cast-reset'; avDel.textContent = '사진 빼기';
       avDel.addEventListener('click', () => { delete avatars[c.name]; saveAvatars(); renderCast(); renderCardSoon(); if (openId) renderList(); });
-      row.append(keep, av, nm, role, avDel, del);
-    } else row.append(keep, av, nm, role, del);
+      row.append(keep, av, nm, role, avDel, clr, del);
+    } else row.append(keep, av, nm, role, clr, del);
     box.append(row);
   });
   renderLibrary();
