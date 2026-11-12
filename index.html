@@ -220,6 +220,7 @@ details.cast > summary::-webkit-details-marker{display:none}
 .cast-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
 .cast-name{flex:1 1 120px; min-width:0; padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel2)}
 
+.avcircle.mob{font-size:10px; letter-spacing:-.02em; opacity:.75; cursor:default}
 .cast-name:focus, .cast-name:focus-visible{outline:none; border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
 .cast-role{flex:none}
 .cast-role button{padding:4px 11px; font-size:12px}
@@ -644,6 +645,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <summary>등장인물 <span class="sum-val" id="castCount"></span><span class="sec-note">동그라미=사진 · PC는 오른쪽 말풍선</span></summary>
       <div id="castList"></div>
       <button class="btn ghost cast-add" id="castAdd">+ 인물 추가</button>
+      <button class="btn ghost cast-add" id="castMob" title="이름과 사진 없이 말풍선만 나와요. 말풍선 자리는 다른 인물과 같아요">+ 모브</button>
       <button class="btn ghost cast-add" id="castClear" title="지금 등장인물을 모두 빼요. 보관함은 그대로예요">모두 지우기</button>
       <details class="more" id="castLib">
         <summary>보관함 <span class="sum-val" id="castLibCount"></span></summary>
@@ -2057,7 +2059,7 @@ function drawSoft(ctx, measure) {
   const bodies = sel.map((m, idx) => {
     ctx.font = fontStr(size, 400);
     const lines = wrapRuns(ctx, m.text, maxW, size, 400, { quotes: true, indent });
-    const nm = displayName(m);
+    const nm = isMob(m) ? '' : displayName(m);
     const named = st.showNames && m.role !== 'narr' && !!nm;
     let h = lines.length * lh;
     if (named) h += nameSize + Math.round(nameSize * 0.55);
@@ -2172,7 +2174,7 @@ function drawCard(ctx, measure) {
     const RO = hlOpts(st.quoteAcc ? rgbCss(acc) : null);
     sel.forEach((m, idx) => {
       if (idx > 0) y += GAP(size, isSoft ? 1.35 : 1.15);
-      const nm = displayName(m);
+      const nm = isMob(m) ? '' : displayName(m);
       if (st.showNames && m.role !== 'narr' && nm) {
         ctx.font = fontStr(nameSize, 700);
         y += nameSize;
@@ -2217,12 +2219,13 @@ function drawCard(ctx, measure) {
         return;
       }
       const isMe = !allLeft && m.role === 'me';
-      const nm = displayName(m);
-      const av = avatarFor(nm);
+      const mob = isMob(m);
+      const nm = mob ? '' : displayName(m);
+      const av = mob ? null : avatarFor(nm);
       const hasAv = !!av;
       const blockTop = y;
 
-      const avSlot = hasAv ? A + avGap : 0;
+      const avSlot = hasAv || (mob && sideHasAv(sel, isMe)) ? A + avGap : 0;
       const colX = pad + (isMe ? 0 : avSlot);
       const rightEdge = W - pad - (isMe ? avSlot : 0);
       const bxBase = colX;
@@ -2533,8 +2536,9 @@ function exportHtml() {
         return;
       }
       const me = st.chatAlign !== 'left' && msg.role === 'me';
-      const name = displayName(msg);
-      const av = avatars[name] && avatars[name].img ? smallAvatar(avatars[name].img) : '';
+      const mob = isMob(msg);
+      const name = mob ? '' : displayName(msg);
+      const av = !mob && avatars[name] && avatars[name].img ? smallAvatar(avatars[name].img) : '';
       const bub = css({
         display: 'inline-block', 'text-align': 'left', 'white-space': 'pre-wrap', 'line-height': String(+(1.55 * lg).toFixed(3)),
         padding: plain ? '0' : '.85em 1.6em',
@@ -2543,7 +2547,8 @@ function exportHtml() {
         'border-radius': plain ? '' : (me ? `${BUBBLE_R}em 0 ${BUBBLE_R}em ${BUBBLE_R}em` : `0 ${BUBBLE_R}em ${BUBBLE_R}em ${BUBBLE_R}em`),
       });
       const who = st.showNames && name ? `<div style="font-size:.78em;font-weight:700;line-height:1.2;color:${m(0.2)};margin-bottom:.5em">${escHtml(name)}</div>` : '';
-      const img = av ? `<img src="${av}" alt="" width="38" height="38" style="width:2.35em;height:2.35em;border-radius:30%;object-fit:cover;vertical-align:top;margin-${me ? 'left' : 'right'}:.62em">` : '';
+      const img = av ? `<img src="${av}" alt="" width="38" height="38" style="width:2.35em;height:2.35em;border-radius:30%;object-fit:cover;vertical-align:top;margin-${me ? 'left' : 'right'}:.62em">`
+        : mob && sideHasAv(sel, me) ? `<span style="display:inline-block;width:2.35em;height:2.35em;vertical-align:top;margin-${me ? 'left' : 'right'}:.62em"></span>` : '';
 
       const stack = `<div style="display:inline-block;vertical-align:top;max-width:85%;${st.fluid && img ? 'max-width:min(85%,calc(100% - 3.1em));' : ''}text-align:${me ? 'right' : 'left'}">${who}<div style="${bub}">${runsHtml(stripQuotes(msg.text))}</div></div>`;
       out.push(`<div style="margin:${top} 0 0;text-align:${me ? 'right' : 'left'}">${me ? stack + img : img + stack}</div>`);
@@ -2736,6 +2741,10 @@ function clearCast(c) {
   c.name = ''; c.color = '';
   castChanged(); renderCast();
   snack('이 줄을 비웠어요. 보관함은 그대로예요');
+}
+const isMob = m => { const c = castFor(m); return !!(c && c.mob); };
+function sideHasAv(sel, me) {
+  return sel.some(x => x.role !== 'narr' && !x.pic && !isMob(x) && (x.role === 'me') === me && avatarFor(displayName(x)));
 }
 function setSpeaker(m, c) {
   if (!c) { m.role = 'narr'; m.name = ''; return; }
@@ -3047,9 +3056,14 @@ function renderCast() {
       if (!c.name) { snack('이름을 먼저 적어 주세요'); row.querySelector('input').focus(); return; }
       avTarget = c.name; $('avFile').click();
     });
+    if (c.mob) {
+      av.className = 'avcircle mob'; av.style.backgroundImage = ''; av.textContent = '모브';
+      av.disabled = true; av.title = '모브는 이름과 사진 없이 말풍선만 나와요';
+    }
     const nm = document.createElement('input');
     nm.className = 'cast-name'; nm.value = c.name;
-    nm.placeholder = c.role === 'me' ? 'PC 이름' : 'NPC 이름';
+    nm.placeholder = c.mob ? '모브 (대사 구분용, 화면엔 안 나와요)' : c.role === 'me' ? 'PC 이름' : 'NPC 이름';
+    if (c.mob) nm.title = '대화 넣기에서 이 이름으로 대사를 구분해요. 카드에는 안 나와요';
     nm.addEventListener('change', () => renameCast(c, nm.value.trim()));
     nm.addEventListener('keydown', e => { if (e.key === 'Enter') nm.blur(); });
     const role = document.createElement('div');
@@ -3078,7 +3092,8 @@ function renderCast() {
     keep.setAttribute('aria-label', keep.title);
     keep.disabled = !c.name;
     keep.addEventListener('click', () => { if (kept) libRemove(kept); else libKeep(c); });
-    if (c.name && avatars[c.name]) {
+    if (c.mob) keep.style.visibility = 'hidden';
+    if (!c.mob && c.name && avatars[c.name]) {
       const avDel = document.createElement('button');
       avDel.className = 'btn ghost cast-reset'; avDel.textContent = '사진 빼기';
       avDel.addEventListener('click', () => { delete avatars[c.name]; saveAvatars(); renderCast(); renderCardSoon(); if (openId) renderList(); });
@@ -3136,6 +3151,15 @@ function renderBubbleList() {
 }
 
 function renderAvatars() { renderCast(); }
+$('castMob').addEventListener('click', () => {
+  ensureCast();
+  let k = 1;
+  while (st.cast.some(c => c.name === (k === 1 ? '모브' : '모브 ' + k))) k++;
+  st.cast.push({ name: k === 1 ? '모브' : '모브 ' + k, role: 'char', color: '', mob: true });
+  persist(); renderCast();
+  const inputs = $('castList').querySelectorAll('.cast-name');
+  const last = inputs[inputs.length - 1]; last.focus(); last.select();
+});
 $('castAdd').addEventListener('click', () => {
   ensureCast();
   let k = st.cast.length + 1;
