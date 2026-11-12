@@ -92,6 +92,7 @@ select{font:inherit; color:var(--ink); padding:8px 10px; border:1px solid var(--
     <div class="row">
       <button class="btn primary" id="send" disabled>블로그로 올리기</button>
       <a id="openLog" href="#" target="_blank" rel="noopener" hidden>올린 글 보기</a>
+      <span id="sendNote" class="meta"></span>
     </div>
     <div id="status"></div>
   </section>
@@ -115,7 +116,27 @@ const MODE = { book: '소설형', chat: '채팅형' };
 
 const BLOG_URL = 'https://smallroom.site';
 
-const ids = () => read('blank.blog.ids', {});
+const keyTitle = last => ((last && last.log && last.log.title) || '').trim();
+const posts = () => read('blank.blog.posts', {});
+function postOf(last) {
+  const t = keyTitle(last);
+  return t ? (posts()[last.talk] || []).find(p => p.title === t) || null : null;
+}
+function savePost(last, id) {
+  const t = keyTitle(last), m = posts();
+  m[last.talk] = (m[last.talk] || []).filter(p => p.title !== t).concat(t ? [{ id, title: t }] : []);
+  write('blank.blog.posts', m);
+}
+const childsAll = () => read('blank.blog.children', {});
+function childOf(last, card) {
+  const t = keyTitle(last);
+  return t ? (childsAll()[last.talk] || []).find(c => c.title === t && (!card || c.card === card)) || null : null;
+}
+function saveChild(last, card, pid) {
+  const t = keyTitle(last), m = childsAll();
+  m[last.talk] = (m[last.talk] || []).filter(c => !(c.title === t && c.card === card)).concat(t ? [{ card, pid, title: t }] : []);
+  write('blank.blog.children', m);
+}
 function status(msg, err) { $('status').textContent = msg; $('status').classList.toggle('err', !!err); }
 
 function show() {
@@ -139,18 +160,17 @@ function show() {
   pv.textContent = log.msgs.slice(0, 4).map(x => x.pic ? '[이미지]' : x.text.replace(/==|\*\*|__/g, '')).join('\n');
   box.append(t, m, pv);
   const cfg = read('blank.blog', null);
-  const child = childs()[last.talk];
+  const child = childOf(last);
   if (child && !destTouched) setDest('ooc');
   $('send').disabled = false;
   syncDest();
   const toCard = dest() === 'ooc';
-  const id = toCard ? (child && child.card === $('oocSel').value ? child.card : '') : ids()[last.talk];
+  const id = toCard ? (childOf(last, $('oocSel').value) ? $('oocSel').value : '') : (postOf(last) || {}).id;
   $('openLog').hidden = !(id && cfg);
   if (id && cfg) $('openLog').href = `${cfg.url}/blog/log/?id=${encodeURIComponent(id)}`;
   loadTags();
 }
 
-const childs = () => read('blank.blog.childs', {});
 let destTouched = false;
 function dest() { return (document.querySelector('input[name="dest"]:checked') || {}).value === 'ooc' ? 'ooc' : 'log'; }
 function setDest(v) { const el = document.querySelector(`input[name="dest"][value="${v}"]`); if (el) el.checked = true; }
@@ -160,16 +180,19 @@ function syncDest() {
   const last = read('blank.last', null);
   if (!last) return;
   if (!$('oocDate').value) $('oocDate').value = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  const child = childs()[last.talk];
   $('send').textContent = toCard
-    ? (child && child.card === $('oocSel').value ? '같은 하위 글 고치기' : 'OOC 카드에 넣기')
-    : (ids()[last.talk] ? '같은 글 고치기' : '블로그로 올리기');
+    ? (childOf(last, $('oocSel').value) ? '같은 하위 글 고치기' : 'OOC 카드에 넣기')
+    : (postOf(last) ? '같은 글 고치기' : '블로그로 올리기');
+  /* 제목이 같을 때만 같은 글로 본다. 제목이 다르거나 없으면 새 글 */
+  const t = keyTitle(last);
+  $('sendNote').textContent = !t ? '제목이 없어서 새 글로 올라가요'
+    : (toCard ? childOf(last, $('oocSel').value) : postOf(last)) ? `제목 「${t}」인 글을 고쳐요` : `제목 「${t}」 새 글로 올라가요`;
 }
 document.querySelectorAll('input[name="dest"]').forEach(r => r.addEventListener('change', () => { destTouched = true; show(); }));
 $('oocSel').addEventListener('change', show);
 function fillOocs(list) {
   const last = read('blank.last', null);
-  const child = last && childs()[last.talk];
+  const child = last && childOf(last);
   const keep = $('oocSel').value || (child && child.card) || '';
   $('oocSel').replaceChildren(...(list.length
     ? list.map(o => new Option(`${o.title} (글 ${o.n})`, o.id))
@@ -281,7 +304,7 @@ document.querySelectorAll('input[name="cat"]').forEach(r => r.addEventListener('
 function pickedTags() { return [...document.querySelectorAll('#tags input:checked')].map(i => i.value); }
 async function loadTags() {
   const cfg = read('blank.blog', null), last = read('blank.last', null);
-  const talk = last && last.talk, id = talk ? ids()[talk] || '' : '';
+  const talk = last && last.talk, id = (postOf(last) || {}).id || '';
   const key = (cfg && cfg.url) + '|' + talk + '|' + id;
   if (!cfg || !talk || tagsFor === key) return;
   tagsFor = key; tagsReady = false;
@@ -322,8 +345,7 @@ $('send').addEventListener('click', async () => {
   busy = true;
   const btn = $('send'), label = btn.textContent;
   btn.disabled = true; btn.textContent = '보내는 중…';
-  const map = ids();
-  let id = map[last.talk] || '';
+  let id = (postOf(last) || {}).id || '';
   let payload;
   const send = (method, path) => fetch(cfg.url + path, {
     method,
@@ -334,16 +356,16 @@ $('send').addEventListener('click', async () => {
     if (dest() === 'ooc') {
       const card = $('oocSel').value;
       if (!card) { status('넣을 OOC 카드를 골라 주세요', true); return; }
-      const cm = childs(), prev = cm[last.talk];
+      const prev = childOf(last, card);
       const full = await withImages(cfg, last.log);
-      payload = { pid: prev && prev.card === card ? prev.pid : undefined, date: $('oocDate').value, title: full.title || '', html: full.html || '', mode: full.mode };
+      payload = { pid: prev ? prev.pid : undefined, date: $('oocDate').value, title: full.title || '', html: full.html || '', mode: full.mode };
       if (!payload.html) { status('이 대화는 하위 글로 보낼 수 없어요 (BLANK를 새로고침한 뒤 다시 [블로그로]를 눌러 주세요)', true); return; }
       const r = await send('POST', `/api/logs/${encodeURIComponent(card)}/posts`);
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { status(r.status === 401 ? '열쇠가 맞지 않아요. 아래 "블로그 연결"에서 다시 적어 주세요' : (d.error || `보내지 못했어요 (${r.status})`), true); return; }
-      cm[last.talk] = { card, pid: d.pid }; write('blank.blog.childs', cm);
+      saveChild(last, card, d.pid);
       tagsFor = null;
-      status(d.replaced ? 'OOC 카드의 같은 하위 글을 고친 내용으로 바꿨어요' : 'OOC 카드에 하위 글로 넣었어요. 고친 뒤 다시 누르면 같은 하위 글이 바뀌어요');
+      status(d.replaced ? 'OOC 카드의 같은 하위 글을 고친 내용으로 바꿨어요' : 'OOC 카드에 하위 글로 넣었어요. 제목을 그대로 두고 고쳐 다시 누르면 이 하위 글이 바뀌어요');
       return;
     }
     payload = await withImages(cfg, last.log);
@@ -360,8 +382,8 @@ $('send').addEventListener('click', async () => {
       return;
     }
     const updated = !!id;
-    map[last.talk] = d.id; write('blank.blog.ids', map);
-    status(updated ? '블로그 글을 고친 내용으로 바꿨어요' : '블로그에 올렸어요. BLANK에서 고친 뒤 다시 누르면 같은 글이 바뀌어요');
+    savePost(last, d.id);
+    status(updated ? '블로그 글을 고친 내용으로 바꿨어요' : keyTitle(last) ? '블로그에 새 글로 올렸어요. 제목을 그대로 두고 고쳐 다시 누르면 이 글이 바뀌어요' : '블로그에 새 글로 올렸어요. 제목이 없어서 다시 보내면 또 새 글이 돼요');
   } catch (e) {
     status(e instanceof TypeError ? '블로그에 닿지 못했어요. 주소를 확인해 주세요' : e.message, true);
   } finally {
