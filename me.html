@@ -183,7 +183,6 @@ function syncDest() {
   $('send').textContent = toCard
     ? (childOf(last, $('oocSel').value) ? '같은 하위 글 고치기' : 'OOC 카드에 넣기')
     : (postOf(last) ? '같은 글 고치기' : '블로그로 올리기');
-  /* 제목이 같을 때만 같은 글로 본다. 제목이 다르거나 없으면 새 글 */
   const t = keyTitle(last);
   $('sendNote').textContent = !t ? '제목이 없어서 새 글로 올라가요'
     : (toCard ? childOf(last, $('oocSel').value) : postOf(last)) ? `제목 「${t}」인 글을 고쳐요` : `제목 「${t}」 새 글로 올라가요`;
