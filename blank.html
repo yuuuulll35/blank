@@ -1,6 +1,5 @@
-<!-- 글꼴: Google Fonts(고운바탕·나눔명조·함렛·송명·디필레이아·고운돋움·IBM Plex Sans KR·주아·도현·Noto Sans KR·개구·나눔손글씨 펜) · 모두 SIL OFL 1.1
-     프리텐다드 · © 2021 길형진(Kil Hyung-jin) · SIL OFL 1.1 -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Hahmlet:wght@400;700&family=Song+Myung&family=Diphylleia&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Jua&family=Do+Hyeon&family=Noto+Sans+KR:wght@400;700;900&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&display=swap">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Hahmlet:wght@400;700&family=Song+Myung&family=Diphylleia&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Jua&family=Do+Hyeon&family=Noto+Sans+KR:wght@400;700;900&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 :root{
@@ -111,11 +110,11 @@ textarea#raw{
 .btn:hover{border-color:var(--accent); color:var(--ink)}
 .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:700}
 .btn.wide{flex:1 1 100%; text-align:center}
-/* 한 줄을 정확히 반씩 나눠 쓴다 (.row gap 8px 보정) */
+
 .btn.half{flex:1 1 0; min-width:0; text-align:center}
 .btn.ghost{background:none; border-color:transparent; color:var(--muted); padding:7px 8px}
 .btn.ghost:hover{color:var(--ink); border-color:transparent}
-/* 확장 프로그램 안내 링크 — 섹션 제목 옆에 작게 */
+
 .extlink{
   display:inline-flex; align-items:center; gap:4px; flex:none;
   font-size:11.5px; font-weight:600; color:var(--muted); text-decoration:none;
@@ -125,13 +124,12 @@ textarea#raw{
 .hint{font-size:11px; color:var(--muted); margin-top:12px}
 .hint::before{content:'* '}
 
-/* 메시지 목록 */
 #list{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding-right:6px}
 #list::-webkit-scrollbar{width:6px}
 #list::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
 #list::-webkit-scrollbar-track{background:none}
 .msg{
-  /* 본문 첫 줄의 높이. 옆 컨트롤들은 전부 이 줄의 가운데에 맞춘다 */
+
   --line1: calc(1px * 2 + 3px * 2 + 13.5px * 1.7);
   --chip-h: 21px;
   display:flex; gap:8px; align-items:flex-start;
@@ -164,8 +162,6 @@ textarea#raw{
 #list:empty{flex:none}
 #empty{flex:1; min-height:0; display:grid; place-content:center; text-align:center; color:var(--muted); font-size:13px; line-height:2; padding:14px 4px}
 
-/* 스타일 패널 */
-/* 라벨은 왼쪽, 컨트롤은 오른쪽 — 넓은 컨트롤만 자동으로 아랫줄로 넘어간다 */
 .ctrl{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px; margin-bottom:12px}
 .ctrl:last-child{margin-bottom:4px}
 .ctrl>span{
@@ -180,7 +176,7 @@ textarea#raw{
 .ctrl>.pickers, .ctrl>.swatches{flex:1 1 auto; justify-content:flex-end}
 .ctrl>span b{font-size:12px; color:var(--muted); font-weight:600; font-variant-numeric:tabular-nums}
 .seg{display:flex; flex-wrap:wrap; gap:6px; width:fit-content}
-/* 자주 쓰는 형태와 그 밖의 형태를 줄로 나눈다 */
+
 .seg-break{flex-basis:100%; height:0}
 .seg button{
   border:1px solid var(--line); background:var(--panel); border-radius:999px;
@@ -221,8 +217,7 @@ input[type=range]{accent-color:var(--accent); width:100%; height:22px}
   transition:transform .16s ease, background .16s ease;
 }
 .toggle input:checked{background:var(--accent)}
-/* 켜졌을 때 트랙이 --accent인데 다크 테마에선 그게 거의 흰색이라
-   흰 손잡이가 묻힌다. 손잡이를 --bg로 뒤집어 두 테마 모두에서 보이게 한다 */
+
 .toggle input:checked::after{transform:translateX(15px); background:var(--bg)}
 select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); width:100%; font-size:13px}
 
@@ -243,7 +238,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 .grp-title{font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.09em; margin-bottom:12px}
 .ctrl[hidden], .grp[hidden]{display:none}
 
-/* 온보딩 투어 */
 #tour{
   position:fixed; z-index:99; max-width:300px;
   background:var(--panel); border:1.5px solid var(--accent); border-radius:12px;
@@ -252,10 +246,9 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 #tour p{margin:0 0 10px}
 #tour .row{margin:0; justify-content:flex-end; align-items:center}
 #tourStep{margin-right:auto; font-size:11.5px; color:var(--muted); font-weight:700; font-variant-numeric:tabular-nums}
-/* 외곽선(2px)과 간격(2px)을 합쳐 4px — 말풍선 위치 계산에서도 이 값을 뺀다 */
+
 .tour-target{outline:2px solid var(--accent) !important; outline-offset:2px; border-radius:8px}
 
-/* 저장 모달 */
 #modal, #avModal{position:fixed; inset:0; background:rgba(20,18,24,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:9}
 #modal.open, #avModal.open{display:flex}
 #modal .inner, #avModal .inner{background:var(--panel); border-radius:12px; padding:18px; max-width:min(720px,94vw); max-height:90vh; overflow:auto}
@@ -264,7 +257,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 #modal p{margin:10px 0 0; font-size:12.5px; color:var(--muted)}
 #modal .row{justify-content:flex-end}
 
-/* 스낵바 */
 #snack{
   position:fixed; left:50%; bottom:30px; transform:translate(-50%,14px); z-index:100;
   background:var(--ink); color:var(--bg); font-size:13px; font-weight:600;
@@ -293,8 +285,6 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
       <button class="btn primary wide" id="parseBtn">적용하기</button>
     </div>
   </details>
-
-
 
   <details class="box" open>
     <summary class="step">스타일 편집 도구</summary>
@@ -575,7 +565,7 @@ select{padding:8px 10px; border:1px solid var(--line); border-radius:8px; backgr
 
 <script>
 'use strict';
-/* ---------- 상태 ---------- */
+
 const state = { msgs: [] };
 const PRESETS = [
   { key:'paper', name:'백지',  bg:'#FAF9F6', ink:'#2B2A33', acc:'#A64B5E' },
@@ -596,7 +586,7 @@ const ST_DEFAULT = Object.freeze({
   sub:'', chatAlign:'sides', bubble:'fill', quoteAcc:false, postDate:'',
 });
 let st = Object.assign({}, ST_DEFAULT);
-/* 예전 이름(mitjul)으로 저장해 둔 값을 blank로 옮긴다 — 저장한 스타일과 설정을 잃지 않도록 */
+
 try {
   for (const [o, n] of [['mitjul.st','blank.st'], ['mitjul.styles','blank.styles'], ['mitjul.tour.done','blank.tour.done']]) {
     const v = localStorage.getItem(o);
@@ -614,9 +604,6 @@ function persist(){ try { localStorage.setItem('blank.st', JSON.stringify(st)); 
 
 const $ = id => document.getElementById(id);
 
-/* 표시용 화자 이름. PC는 한 명뿐이므로 '대화 넣기'에서 선언한 이름을 항상 따르고,
-   NPC는 여러 명일 수 있어 문단에 붙은 이름을 그대로 쓴다 */
-/* 블로그형 날짜 — 피커 값을 표시 형식으로. 비워두면 지금 시각 */
 function fmtStamp(v) {
   const d = v ? new Date(v) : new Date();
   if (isNaN(d.getTime())) return fmtStamp('');
@@ -630,7 +617,6 @@ function displayName(m) {
   return m.name || '';
 }
 
-/* 스낵바 */
 let snackTimer = null;
 function snack(msg) {
   const el = $('snack');
@@ -641,7 +627,6 @@ function snack(msg) {
 }
 let uidN = 1; const uid = () => uidN++;
 
-/* ---------- 파서 ---------- */
 function parseRaw(raw, myName, charName) {
   const paras = raw.replace(/\r/g,'').split(/\n\s*\n+/).map(s => s.trim()).filter(Boolean);
   const msgs = [];
@@ -666,8 +651,7 @@ function parseRaw(raw, myName, charName) {
   return msgs;
 }
 
-/* ---------- 목록 렌더 ---------- */
-let activeTa = null; /* 마지막으로 포커스된 문단 입력창 */
+let activeTa = null;
 function wrapSel(ta, mark) {
   const s = ta.selectionStart, e = ta.selectionEnd;
   if (s === e) return;
@@ -681,7 +665,7 @@ let lastChecked = -1;
 
 function renderList() {
   const list = $('list');
-  /* 다시 그리면 스크롤이 맨 위로 튄다 — 보던 자리를 기억했다가 되돌린다 */
+
   const keepScroll = list.scrollTop;
   list.innerHTML = '';
   $('empty').style.display = state.msgs.length ? 'none' : 'grid';
@@ -743,7 +727,7 @@ function renderList() {
     list.scrollTop = keepScroll;
   });
 }
-/* ---------- 캔버스 렌더 ---------- */
+
 function hexRgb(h) {
   h = h.replace('#',''); if (h.length === 3) h = h.split('').map(c=>c+c).join('');
   return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
@@ -774,22 +758,14 @@ function wrapText(ctx, text, maxW) {
   return out;
 }
 
-/* 줄 간격 / 문단 간격 — 각 형태가 정해둔 기본 배율에 사용자 배율(st.lineGap/paraGap)을 곱한다.
-   모드마다 고유한 리듬은 유지하면서 전체를 함께 늘리고 줄일 수 있다 */
-/* 캡션류(출처·러닝헤드·카테고리·쪽번호)는 자간을 벌려 본문과 결을 나눈다.
-   한글은 자간이 넓으면 행간도 넉넉해야 하므로 한 줄짜리에만 쓴다 */
 function setLS(ctx, v) { if (CAN_LS) { try { ctx.letterSpacing = v || '0px'; } catch (e) {} } }
 const CAP_LS = px => Math.round(px * 0.06) + 'px';
 
-/* 한글 본문은 한 줄 42자 안팎이 편하게 읽힌다.
-   카드를 넓혀도 글줄은 그 이상 늘리지 않고, 남는 폭은 좌우 여백으로 돌린다 */
 function column(x, availW, size) {
   const w = Math.min(availW, Math.round(size * 42));
   return { x: x + Math.round((availW - w) / 2), w };
 }
 
-/* 출처 표기 — 정렬과 색을 사용자 설정대로 그린다.
-   x는 글 영역 왼쪽, w는 글 영역 폭 */
 function drawSource(ctx, text, x, w, yBase, px, weight) {
   const main = st.srcAccent ? rgbCss(hexRgb(st.acc))
                             : rgbCss(mix(hexRgb(st.ink), hexRgb(st.bg), 0.34));
@@ -815,19 +791,15 @@ function drawSource(ctx, text, x, w, yBase, px, weight) {
 function LH(px, mul) { return Math.round(px * mul * st.lineGap); }
 function GAP(px, mul) { return Math.round(px * mul * st.paraGap); }
 
-/* 말풍선 — 알약(반지름 = 높이/2)에서 화자 쪽 위 모서리 하나만 각지게 깎는다.
-   덧붙이는 꼬리가 아니라 모서리 처리라 형태가 깔끔하게 떨어진다 */
 function bubblePath(ctx, x, y, w, h, side) {
   const r = h / 2;
-  const k = 0;   /* 각진 모서리는 완전히 직각 */
+  const k = 0;
   ctx.beginPath();
-  /* roundRect 반지름 순서: 좌상, 우상, 우하, 좌하 */
+
   if (side === 'right') ctx.roundRect(x, y, w, h, [r, k, r, r]);
   else                  ctx.roundRect(x, y, w, h, [k, r, r, r]);
 }
 
-/* 채팅형: 말풍선 자체가 대사 표시라 감싼 따옴표는 중복이므로 지운다.
-   속마음에 흔히 쓰는 홑따옴표는 뜻이 달라지므로 건드리지 않는다 */
 const QUOTE_PAIRS = [['"','"'], ['“','”'], ['「','」'], ['『','』']];
 function stripQuotes(text) {
   const t = text.trim();
@@ -837,7 +809,6 @@ function stripQuotes(text) {
   return text;
 }
 
-/* ---------- 서식 런 엔진: ==형광펜== / **굵게** ---------- */
 function parseRuns(text, quotes) {
   const out = []; let hl = false, b = false, q = false, buf = '';
   const flush = () => { if (buf) { out.push({ t: buf, hl, b, q }); buf = ''; } };
@@ -889,7 +860,7 @@ function wrapRuns(ctx, text, maxW, px, baseWeight = 400, o = {}) {
   return lines;
 }
 function hlOpts(qColor) { return { hlColor: st.hlc, hlInk: textOn(hexRgb(st.hlc)), qColor: qColor || null }; }
-/* 캔버스 자간(letterSpacing) 지원 여부 — 양쪽 정렬에 사용 */
+
 const CAN_LS = (() => {
   try { return 'letterSpacing' in document.createElement('canvas').getContext('2d'); }
   catch (e) { return false; }
@@ -897,13 +868,13 @@ const CAN_LS = (() => {
 function drawRunLine(ctx, line, x0, yBase, px, inkColor, opts = {}) {
   ctx.textAlign = 'left';
   let x = x0, sp = 0;
-  /* 양쪽 정렬: 남는 폭을 글자 사이에 고르게 나눠 오른쪽 끝을 맞춘다 */
+
   if (opts.justify && CAN_LS) {
     let chars = 0;
     for (const s of line.segs) chars += [...s.t].length;
     const room = opts.justify - line.w;
     if (chars > 1 && room > 0) sp = room / (chars - 1);
-    if (sp > px * 0.18) sp = 0; /* 너무 벌어지면 포기 */
+    if (sp > px * 0.18) sp = 0;
   }
   if (CAN_LS) ctx.letterSpacing = sp ? sp.toFixed(2) + 'px' : '0px';
   for (const s of line.segs) {
@@ -922,13 +893,12 @@ function drawRunLine(ctx, line, x0, yBase, px, inkColor, opts = {}) {
   if (CAN_LS && sp) ctx.letterSpacing = '0px';
 }
 
-/* 배경/프로필 이미지 (세션 한정 — 저장 안 함) */
 let bgImg = null;
-/* 화자 이름 → {img, src}. 채팅형·블로그형이 이름으로 찾아 쓴다 */
+
 let avatars = {};
-let avTarget = null;   /* 지금 편집 중인 화자 */
+let avTarget = null;
 function avatarFor(name) { const a = avatars[name || '']; return a ? a.img : null; }
-/* 모서리 둥근 네모로 잘라 그린다 */
+
 function drawAvatar(ctx, img, x, y, A) {
   ctx.save();
   ctx.beginPath();
@@ -939,15 +909,14 @@ function drawAvatar(ctx, img, x, y, A) {
   ctx.drawImage(img, x + (A - dw) / 2, y + (A - dh) / 2, dw, dh);
   ctx.restore();
 }
-/* 액자형의 정체성은 '바깥 배경 + 그 위에 뜬 종이 패널'이므로
-   배경 이미지를 올리지 않아도 액자 구조를 유지한다 */
+
 function fr() {
   if (st.frame <= 0) return 0;
   if (!bgImg && st.mode !== 'soft') return 0;
-  /* frame 값은 카드 폭 640 기준으로 잡은 값이므로 실제 폭에 맞춰 환산한다 */
+
   return Math.round(st.frame * (st.width / 640));
 }
-/* 안쪽 종이 — 액자형은 글 높이만큼만, 그 외에는 여백을 뺀 전체 */
+
 function paintPanel(ctx, f) {
   const W = st.width, H = ctx.canvas._h;
   ctx.fillStyle = st.bg;
@@ -967,8 +936,7 @@ function paintBG(ctx) {
     return;
   }
   if (st.mode === 'soft' && f > 0) {
-    /* 사진이 없을 때의 대체 바탕. 그라데이션을 쓰면 진한 구간이
-       종이 테두리에 걸려 그림자처럼 보이므로 단색으로 둔다 */
+
     ctx.fillStyle = rgbCss(mix(hexRgb(st.bg), hexRgb(st.acc), 0.22));
     ctx.fillRect(0, 0, W, H);
     paintPanel(ctx, f);
@@ -988,12 +956,10 @@ function fontStr(px, weight=400) {
   return `${weight} ${px}px "${st.font}",${FONT_FALLBACK[st.font] || 'sans-serif'}`;
 }
 
-/* 페이지 분할 상태: 렌더 중인 페이지의 메시지 부분집합과 위치 정보 */
 let PAGE_MSGS = null;
 let PAGE_CTX = { first: true, last: true, num: 1, total: 1 };
 function selMsgs() { return PAGE_MSGS || state.msgs.filter(m => m.sel); }
 
-/* 인용구형 — 발췌문을 하나의 문장 카드로 (그라데이션 배경, 작품명·저자 표기) */
 function drawQuote(ctx, measure) {
   const W = st.width, size = st.size, pad = Math.round(size * 2.6) + fr();
   const lh = LH(size, 1.75), maxW = W - pad * 2;
@@ -1037,7 +1003,6 @@ function drawQuote(ctx, measure) {
   return H;
 }
 
-/* 일력형 — 날짜 헤더 + 괘선 위의 문장 + 하단 표기·바 (일력/데일리 캘린더 느낌) */
 function drawDaily(ctx, measure) {
   const W = st.width, size = st.size, pad = Math.round(size * 2.2) + fr();
   const ink = hexRgb(st.ink), bg = hexRgb(st.bg);
@@ -1050,9 +1015,7 @@ function drawDaily(ctx, measure) {
 
   let y = Math.round(pad * 1.15);
   if (PAGE_CTX.first) {
-    // 날짜 헤더: "N월 N일" 형식이면 월 라벨 + 큰 숫자, 아니면 입력 그대로 (첫 페이지에만)
-    /* 일력은 날짜가 본체다. 제목을 받으면 날짜 자리를 뺏겨 일력이 아니게 되므로
-       칸 자체를 두지 않고 오늘 날짜를 그대로 찍는다 */
+
     const d = new Date();
     const label = (d.getMonth() + 1) + '월', day = String(d.getDate());
     const lblSize = Math.round(size * 1.0);
@@ -1072,7 +1035,6 @@ function drawDaily(ctx, measure) {
     y += Math.round(size * 0.4);
   }
 
-  // 괘선 + 문장 (가운데 정렬, 빈 줄도 괘선 유지)
   ctx.font = fontStr(size, 400);
   const text = sel.map(m => m.text).join('\n');
   const qLines = wrapRuns(ctx, text, Math.round((W - pad * 2) * 0.92), size);
@@ -1089,10 +1051,8 @@ function drawDaily(ctx, measure) {
     }
   }
 
-  // 하단 표기: '|'로 최대 3칸, 2칸 이상이면 마지막 조각은 맨 아래 바로 (마지막 페이지에만)
   const src = PAGE_CTX.last ? st.source.trim() : '';
-  /* 예전에는 '|'로 칸을 나눴지만, 구분자를 알아야만 쓸 수 있는 숨은 규칙이라 없앴다.
-     출처 표기는 맨 아래 바 하나로만 들어간다 */
+
   const parts = [];
   const barText = src;
   const f = fr();
@@ -1106,7 +1066,6 @@ function drawDaily(ctx, measure) {
     return y;
   }
 
-  // 그리기 패스: 판형으로 카드가 길어져도 하단 표기는 바닥에 붙도록 고정 배치
   const H = ctx.canvas._h;
   const barY = H - f - barH;
   if (parts.length) {
@@ -1125,7 +1084,6 @@ function drawDaily(ctx, measure) {
   return H;
 }
 
-/* 하이라이트형 — 굵은 문장, 대사만 반전 강조 바 (카드뉴스 느낌) */
 function drawHigh(ctx, measure) {
   const W = st.width, size = st.size, pad = Math.round(size * 1.9) + fr();
   const bSize = Math.round(size * 1.12), lh = LH(bSize, 1.75);
@@ -1134,7 +1092,6 @@ function drawHigh(ctx, measure) {
   const sel = selMsgs();
   if (!measure) paintBG(ctx);
 
-  // 머리글: 왼쪽 제목 · 오른쪽 출처 (첫 페이지에만)
   let y = pad;
   const title = PAGE_CTX.first ? st.title.trim() : '', src = PAGE_CTX.first ? st.source.trim() : '';
   if (title || src) {
@@ -1183,7 +1140,6 @@ function drawHigh(ctx, measure) {
     }
   });
 
-  // 하단 장식 별 (마지막 페이지에만)
   if (!PAGE_CTX.last) return y + pad;
   y += Math.round(size * 2.2);
   const r = Math.round(size * 0.55), cx = W / 2, cy = y;
@@ -1200,10 +1156,8 @@ function drawHigh(ctx, measure) {
   return y + r + pad;
 }
 
-/* 헤드라인 조판 제목 전용 — 본문 글꼴과 무관하게 굵은 고딕 */
 function headFont(px) { return `900 ${px}px "Noto Sans KR","Pretendard Variable",sans-serif`; }
 
-/* 소설형 — 본문 / 시집 / 아티클 / 헤드라인 조판 */
 const BOOK_SPEC = {
   page: { pad: 3.4, lh: 1.95, indent: 1.0, gap: 0,    bot: 3.4 },
   poem: { pad: 3.6, lh: 1.90, indent: 1.0, gap: 0,    bot: 3.4 },
@@ -1225,7 +1179,6 @@ function drawBook(ctx, measure) {
   if (!measure) { paintBG(ctx); ctx.textBaseline = 'alphabetic'; }
   let y = pad;
 
-  /* ---- 머리 ---- */
   if (B === 'page') {
     y += Math.round(size * 2.0);
     if (head) {
@@ -1293,7 +1246,6 @@ function drawBook(ctx, measure) {
     }
   }
 
-  /* ---- 본문 ---- */
   const RO = hlOpts(null);
   const ROJ = st.justify ? Object.assign({ justify: maxW }, RO) : RO;
   ctx.font = fontStr(size, 400);
@@ -1309,7 +1261,6 @@ function drawBook(ctx, measure) {
     });
   });
 
-  /* ---- 발 (쪽번호·표기는 카드 맨 아래에 고정) ---- */
   const bot = Math.round(size * K.bot);
   if (!measure) {
     const by = (ctx.canvas._h || (y + bot + pad)) - pad + Math.round(size * 0.3);
@@ -1317,7 +1268,7 @@ function drawBook(ctx, measure) {
     ctx.fillStyle = muted;
     const pnum = (st.pageNum && B !== 'web') ? String(PAGE_CTX.num).padStart(2, '0') : '';
     if (B === 'poem') {
-      /* 시집 조판은 쪽번호와 지은이가 한 덩어리라 정렬 설정을 따르지 않는다 */
+
       setLS(ctx, CAP_LS(fS)); ctx.font = fontStr(fS, 400);
       let x = colX;
       if (pnum) { ctx.fillText(pnum, x, by); x += ctx.measureText(pnum).width + Math.round(size * 1.1); }
@@ -1335,8 +1286,6 @@ function drawBook(ctx, measure) {
   return y + bot + pad;
 }
 
-/* 블로그형 — 카테고리 / 제목 / 작성자·날짜 / 구분선 / 본문
-   작성자 줄은 '출처 표기'를 |로 나눠 쓴다 (작성자 | 날짜), 프로필 사진은 원형으로 */
 function drawPost(ctx, measure) {
   const W = st.width, size = st.size;
   const pad = Math.round(size * 2.4) + fr();
@@ -1347,7 +1296,7 @@ function drawPost(ctx, measure) {
   const lh = LH(size, 2.0);
   const sel = selMsgs();
   const cat = st.head.trim(), title = st.title.trim();
-  /* 날짜는 게시글의 구조적 요소이므로 전용 칸을 쓴다 */
+
   const author = st.source.trim();
   const when = fmtStamp(st.postDate);
   if (!measure) { paintBG(ctx); ctx.textBaseline = 'alphabetic'; }
@@ -1368,7 +1317,7 @@ function drawPost(ctx, measure) {
       y += Math.round(size * 2.4);
     }
     if (title) {
-      /* 제목은 크되 굵지 않게 — 굵히면 본문과 대비가 아니라 소음이 된다 */
+
       const tS = Math.round(size * 2.2);
       ctx.font = fontStr(tS, 400);
       for (const ln of wrapText(ctx, title, maxW)) {
@@ -1387,12 +1336,12 @@ function drawPost(ctx, measure) {
         if (!measure) drawAvatar(ctx, pav, colX, top, A);
         tx += A + Math.round(size * 0.7);
       }
-      /* 닉네임 아래에 날짜·시간 (출처 표기를 |로 나눠 쓴다) */
+
       if (!measure) {
         if (author) { ctx.font = fontStr(nS, 700); ctx.fillStyle = st.ink; ctx.fillText(author, tx, top + nS); }
         if (when) { ctx.font = fontStr(dS, 400); ctx.fillStyle = muted; ctx.fillText(when, tx, top + nS + Math.round(dS * 1.75)); }
       }
-      /* 오른쪽 UI 요소 — 통계 버튼과 더보기 점 세 개 */
+
       if (!measure) {
         const bS = Math.round(size * 0.76);
         const bh = Math.round(size * 1.95);
@@ -1406,7 +1355,7 @@ function drawPost(ctx, measure) {
         ctx.strokeStyle = rgbCss(mix(ink, bg, 0.76));
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.roundRect(bx2 + 0.5, by2 + 0.5, bw, bh, Math.round(size * 0.34)); ctx.stroke();
-        /* 막대그래프 아이콘 */
+
         const gx = bx2 + Math.round(size * 0.8), gy = by2 + bh - Math.round((bh - ico) / 2);
         ctx.fillStyle = rgbCss(mix(ink, bg, 0.30));
         const bwd = Math.max(2, Math.round(ico * 0.2));
@@ -1414,7 +1363,7 @@ function drawPost(ctx, measure) {
           ctx.fillRect(gx + i * Math.round(ico * 0.4), gy - Math.round(ico * k), bwd, Math.round(ico * k));
         });
         ctx.fillText('통계', gx + ico + Math.round(size * 0.34), by2 + Math.round(bh / 2) + Math.round(bS * 0.36));
-        /* 더보기 */
+
         const kx = colX + maxW - Math.round(kebabW / 2), ky = top + Math.round(A / 2);
         const dot = Math.max(1.3, size * 0.095);
         ctx.fillStyle = rgbCss(mix(ink, bg, 0.42));
@@ -1446,14 +1395,11 @@ function drawPost(ctx, measure) {
   return y + pad;
 }
 
-/* 액자형 — 사진이 카드 전체를 채우고, 글 크기만큼의 종이가 그 위에 얹힌다.
-   종이가 카드 높이를 꽉 채우면 사진이 얇은 테두리로만 남아 액자가 아니게 된다.
-   그리는 시점에 종이의 위치·높이를 여기에 담아 paintBG가 쓴다 */
 let SOFT_PANEL = null;
 function drawSoft(ctx, measure) {
   const W = st.width, size = st.size;
-  const f = fr();                                /* 사진이 보이는 바깥 여백 */
-  const inner = Math.round(size * 2.6);          /* 종이 안쪽 여백 */
+  const f = fr();
+  const inner = Math.round(size * 2.6);
   const x0 = f + inner, maxW = W - x0 * 2;
   const lh = LH(size, 1.95);
   const indent = Math.round(size * 1.0);
@@ -1466,7 +1412,6 @@ function drawSoft(ctx, measure) {
   const tSize = Math.round(size * 1.4), sSize = Math.round(size * 0.72);
   const nameSize = Math.round(size * 0.78);
 
-  /* 1) 종이에 들어갈 내용의 높이를 먼저 잰다 */
   let contentH = 0;
   let titleLines = null;
   if (title) {
@@ -1490,14 +1435,12 @@ function drawSoft(ctx, measure) {
   const panelH = contentH + inner * 2;
   if (measure) return panelH + f * 2;
 
-  /* 2) 사진 → 종이 (카드 높이 안에서 세로 가운데) */
   const H = ctx.canvas._h;
   const ph = Math.min(panelH, H - f * 2);
   SOFT_PANEL = { top: Math.max(f, Math.round((H - ph) / 2)), h: ph };
   paintBG(ctx);
   ctx.textBaseline = 'alphabetic';
 
-  /* 3) 글 */
   let y = SOFT_PANEL.top + inner;
   if (titleLines) {
     ctx.font = fontStr(tSize, 700);
@@ -1533,7 +1476,6 @@ function drawSoft(ctx, measure) {
   return panelH + f * 2;
 }
 
-/* measure=true면 그리지 않고 높이만 계산 */
 function drawCard(ctx, measure) {
   if (st.mode === 'quote') return drawQuote(ctx, measure);
   if (st.mode === 'daily') return drawDaily(ctx, measure);
@@ -1554,7 +1496,6 @@ function drawCard(ctx, measure) {
     ctx.textBaseline = 'alphabetic';
   }
 
-  // 제목 (첫 페이지에만)
   if (st.title.trim() && PAGE_CTX.first) {
     const tSize = Math.round(size * 1.5);
     ctx.font = fontStr(tSize, 700);
@@ -1574,7 +1515,7 @@ function drawCard(ctx, measure) {
         if (!measure) { ctx.font = fontStr(subSize, 400); ctx.fillStyle = rgbCss(mix(ink, bg, 0.52)); ctx.fillText(ln, scol.x, y); }
       }
     }
-    /* 기본형만 실선, 채팅형은 여백으로 띄운다 */
+
     if (isNovel) {
       y += Math.round(size * 1.5);
       if (!measure) {
@@ -1614,13 +1555,12 @@ function drawCard(ctx, measure) {
       });
     });
   } else {
-    /* 채팅형 */
+
     const allLeft = st.chatAlign === 'left';
     const plain = st.bubble === 'plain';
-    const A = Math.round(size * 2.35);                 /* 프로필 한 변 */
+    const A = Math.round(size * 2.35);
     const avGap = Math.round(size * 0.62);
-    /* 알약 형태 — 줄 수와 무관하게 반지름은 항상 높이의 절반으로 통일한다.
-       상한을 두면 한 줄은 알약, 여러 줄은 둥근 사각형이 되어 모양이 섞인다 */
+
     const padX = plain ? 0 : Math.round(size * 1.6);
     const padY = plain ? 0 : Math.round(size * 1.05);
     const bubChar = mix(bg, ink, 0.10), bubMe = acc;
@@ -1628,7 +1568,7 @@ function drawCard(ctx, measure) {
     sel.forEach((m, idx) => {
       if (idx > 0) y += GAP(size, 1.1);
       if (m.role === 'narr') {
-        /* 나레이션: 말풍선 사이의 전체 폭 문단 */
+
         y += Math.round(size * 0.9);
         const nLines = wrapRuns(ctx, m.text, W - pad * 2, size);
         for (const line of nLines) {
@@ -1646,10 +1586,9 @@ function drawCard(ctx, measure) {
       const isMe = !allLeft && m.role === 'me';
       const nm = displayName(m);
       const av = avatarFor(nm);
-      const hasAv = !!av;                     /* PC도 사진이 있으면 그린다 */
+      const hasAv = !!av;
       const blockTop = y;
-      /* 자리는 그 화자에게 사진이 있을 때만 비운다.
-         하나라도 있으면 전부 비우면, 사진 없는 화자까지 들어간 것처럼 밀린다 */
+
       const avSlot = hasAv ? A + avGap : 0;
       const colX = pad + (isMe ? 0 : avSlot);
       const rightEdge = W - pad - (isMe ? avSlot : 0);
@@ -1686,7 +1625,6 @@ function drawCard(ctx, measure) {
     });
   }
 
-  // 출처 (마지막 페이지에만)
   if (st.source.trim() && PAGE_CTX.last) {
     y += Math.round(size * 2.0);
     const sSize = Math.round(size * 0.70);
@@ -1712,7 +1650,7 @@ async function renderCard() {
   }
 
   try {
-    /* 한글 웹폰트는 글자 범위별로 쪼개 배포되므로, 실제 렌더할 텍스트 전체로 로드해야 첫 적용부터 모든 글자가 나온다 */
+
     const sampleText = sel.map(m => m.text).join('') + st.title + st.source + '가나다 ABC 0123456789';
     await Promise.all([400, 500, 700].map(w =>
       document.fonts.load(`${w} ${st.size}px "${st.font}"`, sampleText)));
@@ -1723,7 +1661,6 @@ async function renderCard() {
   const mctx = mCanvas.getContext('2d');
   const resetM = () => { mCanvas.width = st.width * S; mCanvas.height = 10; mctx.setTransform(S, 0, 0, S, 0, 0); };
 
-  // 페이지 나누기: 한 페이지 높이를 넘으면 메시지 단위로 다음 페이지로 넘김
   const pageH = st.ratio > 0 ? Math.round(st.width * st.ratio) : Math.round(st.width * 1.9);
   PAGE_MSGS = sel; PAGE_CTX = { first: true, last: true, num: 1, total: 1 };
   resetM();
@@ -1754,7 +1691,7 @@ async function renderCard() {
     resetM();
     let H = Math.ceil(drawCard(mctx, true));
     if (st.ratio > 0 || pages.length > 1) H = Math.max(H, pageH);
-    else if (st.mode === 'quote') H = Math.max(H, st.width); // 인용구형 기본은 최소 정사각형
+    else if (st.mode === 'quote') H = Math.max(H, st.width);
     const canvas = pageCanvases[i];
     canvas.width = st.width * S; canvas.height = H * S;
     canvas._h = H;
@@ -1768,7 +1705,6 @@ async function renderCard() {
   showPage(Math.min(curPage, pageCanvases.length - 1));
 }
 
-/* ---------- 페이지 넘기기 ---------- */
 let curPage = 0;
 function showPage(i) {
   if (!pageCanvases.length) return;
@@ -1784,7 +1720,6 @@ function showPage(i) {
   $('stage').scrollTop = 0;
 }
 
-/* ---------- 페이지 썸네일 (여러 페이지일 때만) ---------- */
 function renderThumbs() {
   const box = $('thumbs');
   if (pageCanvases.length <= 1) { box.hidden = true; box.innerHTML = ''; return; }
@@ -1821,8 +1756,7 @@ function renderCardSoon() {
   renderTimer = setTimeout(renderCard, 120);
 }
 
-/* ---------- 미리보기 배율 ---------- */
-let zoom = 'fit'; // 'fit' 또는 배율 숫자
+let zoom = 'fit';
 function fitScale() {
   const avail = $('stage').clientWidth - 72;
   return Math.max(0.2, Math.min(1.5, avail / st.width));
@@ -1842,12 +1776,11 @@ $('zoomOut').addEventListener('click', () => nudgeZoom(-1));
 $('zoomFit').addEventListener('click', () => { zoom = 'fit'; applyZoom(); });
 window.addEventListener('resize', () => { if (zoom === 'fit') applyZoom(); });
 
-/* ---------- 저장 ---------- */
 function stamp() {
   const d = new Date(), p = n => String(n).padStart(2,'0');
   return `${String(d.getFullYear()).slice(2)}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
 }
-/* claude.ai 아티팩트 뷰어에서는 downloads 기능으로 저장 (없으면 일반 다운로드) */
+
 let dl = null;
 (async () => {
   try { if (window.claude && typeof claude.use === 'function') dl = await claude.use('downloads'); }
@@ -1868,14 +1801,14 @@ $('saveBtn').addEventListener('click', async () => {
         continue;
       } catch (e) {
         if (e && (e.code === 'declined' || e.code === 'rate_limited')) return;
-        /* 그 외 실패는 아래 수동 저장 안내로 */
+
       }
     } else {
       try {
         const a = document.createElement('a');
         a.href = canvas.toDataURL('image/png'); a.download = name;
         document.body.append(a); a.click(); a.remove();
-        await new Promise(r => setTimeout(r, 250)); /* 연속 다운로드 간격 */
+        await new Promise(r => setTimeout(r, 250));
         continue;
       } catch (e) {}
     }
@@ -1884,7 +1817,7 @@ $('saveBtn').addEventListener('click', async () => {
     return;
   }
 });
-/* 복사: 여러 페이지면 세로로 이어 붙인 한 장으로 복사 */
+
 function combinedCanvas() {
   if (pageCanvases.length === 1) return pageCanvases[0];
   const gap = 48;
@@ -1913,7 +1846,6 @@ $('copyBtn').addEventListener('click', async () => {
 $('modalClose').addEventListener('click', () => $('modal').classList.remove('open'));
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.remove('open'); });
 
-/* ---------- 탭 전환 ---------- */
 function setTab(t) {
   const edit = t === 'edit';
   $('editPane').hidden = !edit;
@@ -1926,7 +1858,6 @@ function setTab(t) {
 $('tabEdit').addEventListener('click', () => setTab('edit'));
 $('tabPrev').addEventListener('click', () => setTab('preview'));
 
-/* ---------- 서식 툴바 (포커스된 문단의 선택 영역에 적용) ---------- */
 function syncTa(ta) { ta.dispatchEvent(new Event('input')); }
 [['fmtHl', '=='], ['fmtB', '**']].forEach(([id, mark]) => {
   const b = $(id);
@@ -1948,7 +1879,6 @@ $('fmtClear').addEventListener('click', () => {
   ta.focus(); syncTa(ta);
 });
 
-/* ---------- 컨트롤 바인딩 ---------- */
 const PLACEHOLDERS = {
   novel: ['카드 맨 위 제목 (비우면 생략)', '카드 맨 아래 작은 글씨 (비우면 생략)'],
   soft:  ['카드 맨 위 제목 (비우면 생략)', '카드 맨 아래 가운데 표기 (비우면 생략)'],
@@ -1958,14 +1888,14 @@ const PLACEHOLDERS = {
   high:  ['왼쪽 위 머리글 (비우면 생략)', '오른쪽 위 표기 (비우면 생략)'],
   post:  ['글 제목 (비우면 생략)', '작성자 (비우면 생략)'],
 };
-/* 소설형은 조판마다 각 칸의 뜻이 달라진다 — [제목, 출처, 머리글] */
+
 const BOOK_PH = {
   page: ['소제목 (비우면 생략)', '맨 아래 왼쪽 작은 글씨 (비우면 생략)', '러닝헤드 (비우면 생략)'],
   poem: ['시 제목 (비우면 생략)', '지은이 (비우면 생략)', ''],
   web:  ['큰 제목 (비우면 생략)', '맨 아래 왼쪽 작은 글씨 (비우면 생략)', '분류 표시 (비우면 생략)'],
   head: ['대형 제목 (비우면 생략)', '맨 아래 왼쪽 출처 (비우면 생략)', ''],
 };
-/* 목록에 실제로 등장하는 화자 이름 (블로그형은 작성자) */
+
 function speakerNames() {
   const out = [];
   if (st.mode === 'post') {
@@ -1978,8 +1908,7 @@ function speakerNames() {
   }
   return out;
 }
-/* 이 화자를 PC로 지정한다. 이름 문자열이 우연히 맞기를 기다리지 않고
-   목록에서 직접 고르게 한다 — 로그의 이름과 선언한 이름이 다를 수 있으므로 */
+
 function setPcName(name) {
   st.myName = name;
   for (const m of state.msgs) {
@@ -2002,14 +1931,14 @@ function renderAvatars() {
   }
   for (const n of names) {
     const row = document.createElement('div'); row.className = 'avrow';
-    /* 썸네일은 사진이 있을 때만 — 빈 네모는 아무것도 알려주지 않는다 */
+
     if (avatars[n]) {
       const th = document.createElement('span'); th.className = 'avthumb';
       th.style.backgroundImage = 'url(' + avatars[n].src + ')';
       row.append(th);
     }
     const nm = document.createElement('b'); nm.textContent = n;
-    /* 블로그형의 작성자는 글쓴이일 뿐이라 PC/NPC 개념이 없다 */
+
     let pc = null;
     if (st.mode !== 'post') {
       const isPc = !!st.myName && n === st.myName;
@@ -2020,7 +1949,7 @@ function renderAvatars() {
       pc.addEventListener('click', () => setPcName(isPc ? '' : n));
     }
     const pick = document.createElement('button');
-    /* 이미 지정된 뒤에는 '이미지 선택'과 '제거'가 뜻이 겹쳐 보인다 */
+
     pick.className = 'btn'; pick.textContent = avatars[n] ? '다시 선택' : '이미지 선택';
     pick.addEventListener('click', () => { avTarget = n; $('avFile').click(); });
     row.append(nm); if (pc) row.append(pc); row.append(pick);
@@ -2034,13 +1963,12 @@ function renderAvatars() {
   }
 }
 
-/* 형태마다 쓰는 설정이 다르다 — 여기에 없는 항목은 그 형태에서 감춘다 */
 const MODE_UI = {
   novel: { title:1, sub:1, source:1, srcOpt:1, names:1, justify:1, quoteAcc:1 },
   soft:  { title:1,        source:1, srcOpt:1, names:1, justify:1, frame:1 },
   chat:  { title:1, sub:1, source:1, srcOpt:1, names:1, avatars:1, chat:1, narr:1 },
   quote: { title:1,        source:1 },
-  daily: {                 source:1 },   /* 날짜가 본체라 제목을 받지 않는다 */
+  daily: {                 source:1 },
   high:  { title:1,        source:1 },
   book:  { title:1,        source:1, srcOpt:1, head:1, justify:1, book:1, pageNum:1 },
   post:  { title:1,        source:1, head:1, avatars:1, justify:1, date:1 },
@@ -2052,7 +1980,7 @@ function syncControls() {
   const isBook = st.mode === 'book';
   const ph = isBook ? (BOOK_PH[st.book] || BOOK_PH.page) : (PLACEHOLDERS[st.mode] || PLACEHOLDERS.novel);
   $('titleIn').placeholder = ph[0]; $('sourceIn').placeholder = ph[1];
-  /* 일력형에서 이 칸은 제목이 아니라 날짜다 — 라벨을 역할대로 표시한다 */
+
   $('sourceLabel').textContent = st.mode === 'post' ? '작성자' : '출처 표기';
   $('rowTitle').hidden = !ui.title;
   $('rowSource').hidden = !ui.source;
@@ -2111,7 +2039,7 @@ function syncControls() {
   $('rowNarr').hidden = !ui.narr;
   document.querySelectorAll('#narrSeg button').forEach(b =>
     b.classList.toggle('on', b.dataset.na === st.narrAlign));
-  /* 배경 사진은 액자형에서만 쓴다 */
+
   $('grpBg').hidden = !ui.frame;
   $('frameCtrl').hidden = !ui.frame;
   $('frameR').value = st.frame; $('frameVal').textContent = st.frame + 'px';
@@ -2128,7 +2056,7 @@ for (const p of PRESETS) {
 }
 $('modeSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  /* 모드만 바꾼다. 색·판형·여백은 사용자가 고른 값이므로 건드리지 않는다 */
+
   upd({ mode: b.dataset.mode });
 });
 $('fontSel').addEventListener('change', e => upd({ font: e.target.value }));
@@ -2211,8 +2139,7 @@ $('bgFile').addEventListener('change', e => {
   };
   rd.readAsDataURL(file);
 });
-/* ---------- 내 스타일 ----------
-   대화·이름은 스타일이 아니므로 저장 대상에서 뺀다 */
+
 const STYLE_SKIP = ['myName', 'charName', 'title', 'sub', 'source', 'head', 'postDate'];
 let myStyles = [];
 try { myStyles = JSON.parse(localStorage.getItem('blank.styles') || '[]') || []; } catch (e) { myStyles = []; }
@@ -2267,7 +2194,6 @@ $('saveStyle').addEventListener('click', () => {
   snack('「' + name + '」(으)로 저장했어요');
 });
 
-/* 대화 쪽만 비운다 — 스타일은 그대로 */
 function clearTalk() {
   state.msgs = [];
   st.myName = ''; st.charName = '';
@@ -2275,7 +2201,7 @@ function clearTalk() {
   avatars = {}; avSrc = null; avTarget = null; $('avFile').value = '';
   persist(); syncControls(); renderList(); renderCardSoon();
 }
-/* 스타일 쪽만 되돌린다 — 대화는 그대로 */
+
 function clearStyle() {
   const keep = { myName: st.myName, charName: st.charName };
   st = Object.assign({}, ST_DEFAULT, keep);
@@ -2306,7 +2232,6 @@ $('bgClear').addEventListener('click', () => {
   syncControls(); renderCardSoon();
 });
 
-/* ---------- OOC 문구: 눌러서 복사 ---------- */
 const OOC_TEXT = [
   '*[OOC: 잠시 역할극 중단. PC와 NPC의 현재 서사와 관계의 온도, 감정선의 결을 분석하여 그 정서를 시각화하는 추상 배경 이미지 생성용 영문 프롬프트를 작성하시오.',
   '[조건] 1. 인물, 신체, 복장, 표정 묘사 전면 금지. 오직 색채와 번짐의 흐름만 서술할 것. 2. 어두운 색, 강한 명도 대비, 인공 광원, 메탈릭 액센트 사용 금지. 3. 팔레트는 감정선에 맞춰 자유롭게 선정하되 낮은 채도의 부드럽고 따뜻한 중간톤 이하로 유지할 것. 4. 색이 서로 젖어들며 번지고 겹치는 유기적 확산과 부드러운 경계를 묘사할 것. 5. 밝은 영역은 여백이 아니라 옅게 희석된 색으로 처리할 것. 6. 감성적인 인스타 느낌의 색상 마블링 사진일것(수채화질감, 액체질감 등 분위기에 맞춰 추가 가능)',
@@ -2326,8 +2251,8 @@ $('oocCopy').addEventListener('click', async () => {
   }
   snack(ok ? '결과를 챗지피티에 넣어서 이미지 생성을 요청해 주세요' : '복사에 실패했어요');
 });
-/* ---------- 프로필 사진 자르기/확대 편집 ---------- */
-let avSrc = null; /* 원본 이미지 (재편집용) */
+
+let avSrc = null;
 const AV_BOX = 260;
 const AVE = { scale: 1, min: 1, x: 0, y: 0 };
 function avClampPos() {
@@ -2416,18 +2341,17 @@ $('narrSeg').addEventListener('click', e => {
 });
 $('titleIn').addEventListener('input', e => upd({ title: e.target.value }));
 $('sourceIn').addEventListener('input', e => upd({ source: e.target.value }));
-/* 이름이 바뀌면 목록의 칩과 카드의 화자 표기가 함께 따라가야 한다 */
+
 $('myName').addEventListener('input', e => { setPcName(e.target.value.trim()); });
 $('charName').addEventListener('input', e => {
   st.charName = e.target.value.trim(); persist(); renderList(); renderCardSoon();
 });
 
-/* 문단 단위 분해: 대사/나레이션이 섞인 장문 블록을 문단으로 쪼개고 자동 분류 */
 function isDialoguePara(p) {
   const t = p.trim();
-  if (/^["“「『']/.test(t)) return true;            /* 따옴표로 시작 */
-  if (/^[\[(【💬]/u.test(t)) return false;                        /* 메타/괄호 줄 */
-  if (/\([^)]*[A-Za-z]{2,}[^)]*\)\s*$/.test(t) && !t.includes('\n')) return true; /* 한국어 대사 + (영문 번역) */
+  if (/^["“「『']/.test(t)) return true;
+  if (/^[\[(【💬]/u.test(t)) return false;
+  if (/\([^)]*[A-Za-z]{2,}[^)]*\)\s*$/.test(t) && !t.includes('\n')) return true;
   return false;
 }
 function splitMsg(m) {
@@ -2442,7 +2366,6 @@ function splitMsg(m) {
   }));
 }
 
-/* 확장프로그램(발췌 수집기)이 복사한 JSON도 그대로 붙여넣어 인식 */
 function parseExtension(raw) {
   const t = raw.trim();
   if (!t.startsWith('{')) return null;
@@ -2472,8 +2395,7 @@ $('parseBtn').addEventListener('click', () => {
   setTab('prev');
 });
 $('sampleBtn').addEventListener('click', () => {
-  /* 예시는 지금 선언된 이름으로 만든다. 이름을 박아두면 이미 다른 이름을
-     적어둔 경우 화자가 어긋나 PC 대사가 NPC로 분류된다 */
+
   if (!st.myName) { st.myName = '나'; }
   if (!st.charName) { st.charName = '세인'; }
   persist(); syncControls();
@@ -2513,7 +2435,6 @@ $('splitBtn').addEventListener('click', () => {
   renderList(); renderCardSoon();
 });
 
-/* ---------- 확장/북마클릿 연동: #d=base64url(JSON) ---------- */
 try {
   if (location.hash.startsWith('#d=')) {
     const b64 = location.hash.slice(3).replace(/-/g,'+').replace(/_/g,'/');
@@ -2536,7 +2457,6 @@ try {
   }
 } catch (e) {}
 
-/* ---------- 온보딩 투어 ---------- */
 const TOUR = [
   {
     el: () => document.querySelector('.sidebar details'),
@@ -2593,7 +2513,7 @@ function tourShow(i) {
   tip.hidden = false;
   requestAnimationFrame(() => {
     const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
-    const ring = 4; /* .tour-target 외곽선이 차지하는 여유 */
+    const ring = 4;
     let top = r.bottom + ring + 8;
     if (top + th > innerHeight - 10) top = Math.max(10, r.top - th - ring - 8);
     let left = Math.min(Math.max(10, r.left - ring), innerWidth - tw - 10);
@@ -2607,16 +2527,14 @@ function startTour() {
 $('tourNext').addEventListener('click', () => tourShow(tourIdx + 1));
 $('tourSkip').addEventListener('click', tourEnd);
 $('helpBtn').addEventListener('click', startTour);
-/* summary 안에 있어서 그냥 두면 클릭이 섹션 접기로 새어 나간다 */
+
 $('extLink').addEventListener('click', e => e.stopPropagation());
 
 syncControls(); renderList(); renderStyles(); setTab('edit'); renderCard();
 
-/* 첫 방문이면 예시와 함께 사용법 안내 시작 */
 try {
   if (!localStorage.getItem('blank.tour.done') && !state.msgs.length) {
-    /* 끝까지 보지 않고 그냥 쓰기 시작하거나 탭을 닫아도 다시 뜨지 않도록
-       완료 시점이 아니라 띄우는 시점에 기록한다. 도움말 버튼으로는 언제든 다시 볼 수 있다 */
+
     localStorage.setItem('blank.tour.done', '1');
     setTimeout(startTour, 600);
   }
