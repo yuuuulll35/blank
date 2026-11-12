@@ -3476,7 +3476,10 @@ const LOOKS = [
   { key:'head',   name:'헤드라인',  set:{ mode:'book', book:'head' } },
   { key:'bubble', name:'말풍선',    set:{ mode:'chat', bubble:'fill' } },
 ];
-const lookOn = l => st.mode === l.set.mode && (l.set.book ? st.book === l.set.book : true);
+/* 지금 설정이 저장한 내 스타일과 똑같으면 그 카드만 선택 표시하고, 기본 모양 카드는 표시하지 않는다 */
+const MINE_IGNORE = ['ratioKey', 'ratio', 'pageNum']; /* 화면이 늘 정해 두는 값이라 비교에서 뺀다 */
+const mineOn = s => { const d = s.data || {}; const ks = Object.keys(d).filter(k => !MINE_IGNORE.includes(k)); return ks.length > 0 && ks.every(k => JSON.stringify(st[k]) === JSON.stringify(d[k])); };
+const lookOn = l => !myStyles.some(mineOn) && Object.keys(l.set).every(k => st[k] === l.set[k]);
 /* 카드 속 작은 그림: 지금 색으로 줄을 그어 모양만 보여준다 [줄 폭(%), 줄 굵기, 정렬, 둥근 말풍선?] */
 const LOOK_SKETCH = {
   page:   [[34,3,'l'],[100,3,'l'],[100,3,'l'],[70,3,'l']],
@@ -3524,7 +3527,7 @@ function renderLooks() {
     const d = s.data || {};
     const key = d.mode === 'chat' ? (d.bubble === 'plain' ? 'plain' : 'bubble') : (d.book || 'page');
     const b = document.createElement('div');
-    b.className = 'look mine'; b.tabIndex = 0; b.setAttribute('role', 'button');
+    b.className = 'look mine' + (mineOn(s) ? ' on' : ''); b.tabIndex = 0; b.setAttribute('role', 'button');
     b.title = '「' + s.name + '」 적용';
     const apply = () => { applyStyle(d); snack('「' + s.name + '」 스타일을 적용했어요'); };
     b.addEventListener('click', apply);
