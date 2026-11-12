@@ -1033,6 +1033,10 @@ function insGap(at, pinned) {
     };
     add('나레이션', () => addMsgAt(at, null));
     (st.cast || []).forEach(c => add(castLabel(c), () => addMsgAt(at, c)));
+    add('구분선', () => {
+      const msg = { id: uid(), role: 'narr', name: '', text: '---', sel: true };
+      state.msgs.splice(at, 0, msg); flashId = msg.id; closeIns(); renderList(); renderCardSoon();
+    }).title = '글 폭 전체에 가는 선을 넣어요. 대화 넣기에 --- 만 적힌 줄을 넣어도 돼요';
 
     if (isMe) add('이미지', () => { picAt = at; $('picFile').click(); });
     if (at > 0 && at < state.msgs.length && !state.msgs[at - 1].pic && !state.msgs[at].pic) {
@@ -1184,7 +1188,7 @@ function renderList() {
 
     const chip = document.createElement('button');
     chip.className = 'chip ' + msg.role;
-    chip.textContent = msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
+    chip.textContent = isRule(msg) ? '구분선' : msg.role === 'narr' ? ROLE_LABEL.narr : (displayName(msg) || ROLE_LABEL[msg.role]);
     chip.title = '눌러서 화자 고르기';
     const cc = castColorFor(msg);
     if (cc) { chip.style.background = cc; chip.style.color = textOn(hexRgb(cc)); }
@@ -1888,6 +1892,12 @@ function drawBook(ctx, measure) {
   ctx.font = fontStr(size, 400);
   sel.forEach((m, idx) => {
     if (idx > 0 && K.gap) y += GAP(size, K.gap);
+    if (isRule(m)) {
+      y += Math.round(lh * 0.9);
+      if (!measure) { ctx.fillStyle = rgbCss(mix(ink, bg, 0.8)); ctx.fillRect(colX, y, maxW, 1); }
+      y += Math.round(lh * 0.9);
+      return;
+    }
     const lines = wrapRuns(ctx, m.text, maxW, size, 400, { indent });
     lines.forEach((line, li) => {
       y += lh;
@@ -2204,6 +2214,12 @@ function drawCard(ctx, measure) {
     const RO = hlOpts(null);
     sel.forEach((m, idx) => {
       if (idx > 0) y += Math.round(size * chatGapEm(sel[idx - 1], m));
+      if (isRule(m)) {
+        y += Math.round(lh * 0.9);
+        if (!measure) { ctx.fillStyle = rgbCss(mix(ink, bg, 0.8)); ctx.fillRect(pad, y, W - pad * 2, 1); }
+        y += Math.round(lh * 0.9);
+        return;
+      }
       if (m.role === 'narr') {
 
         const nLines = wrapRuns(ctx, m.text, W - pad * 2, size);
@@ -2514,6 +2530,7 @@ function exportHtml() {
     }
     sel.forEach((msg, i) => {
       if (msg.pic) { out.push(picHtml(msg)); return; }
+      if (isRule(msg)) { out.push(`<div style="margin:${i && K.gap ? (K.gap * pg) + 'em' : '0'} 0 0;padding:1.4em 0"><hr style="border:0;height:1px;background:${m(0.8)};margin:0"></div>`); return; }
       out.push(`<p style="${css({ margin: 0, 'margin-top': i && K.gap ? (K.gap * pg) + 'em' : '',
         'text-indent': K.indent ? K.indent + 'em' : '', 'line-height': String(+(K.lh * lg).toFixed(3)),
         'white-space': 'pre-wrap', 'text-align': st.justify ? 'justify' : '' })}">${runsHtml(msg.text)}</p>`);
@@ -2530,6 +2547,7 @@ function exportHtml() {
     sel.forEach((msg, i) => {
       const top = i ? +chatGapEm(sel[i - 1], msg).toFixed(3) + 'em' : '0';
       if (msg.pic) { out.push(picHtml(msg)); return; }
+      if (isRule(msg)) { out.push(`<div style="margin:${top} 0 0;padding:1.4em 0"><hr style="border:0;height:1px;background:${m(0.8)};margin:0"></div>`); return; }
       if (msg.role === 'narr') {
         out.push(`<div style="${css({ margin: `${top} 0 0`, 'line-height': String(+(1.55 * lg).toFixed(3)), color: m(0.14),
           'text-align': st.narrAlign || 'left', 'white-space': 'pre-wrap' })}">${runsHtml(msg.text)}</div>`);
@@ -2742,6 +2760,7 @@ function clearCast(c) {
   castChanged(); renderCast();
   snack('이 줄을 비웠어요. 보관함은 그대로예요');
 }
+const isRule = m => !!m && !m.pic && m.role === 'narr' && /^\s*(-{3,}|\*{3,}|_{3,}|—{2,})\s*$/.test(m.text || '');
 const isMob = m => { const c = castFor(m); return !!(c && c.mob); };
 function sideHasAv(sel, me) {
   return sel.some(x => x.role !== 'narr' && !x.pic && !isMob(x) && (x.role === 'me') === me && avatarFor(displayName(x)));
